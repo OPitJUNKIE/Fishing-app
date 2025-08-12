@@ -1,257 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Upstate NY Fishing Bite Calculator</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fishing Bite Likelihood</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="bite_app_icon_512.png">
+<link rel="icon" href="bite_app_icon_512.png" type="image/png">
 <style>
-  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f0f5f0; }
-  header { background: #1f5d1f; color: white; padding: 10px; text-align: center; }
-  main { padding: 15px; }
-  h2 { margin-top: 20px; }
-  select, button, input { font-size: 16px; padding: 5px; margin-top: 5px; }
-  .result { background: white; padding: 10px; border-radius: 5px; margin-top: 10px; }
-  nav { display: flex; }
-  nav button { flex: 1; padding: 10px; font-size: 16px; }
-  .hidden { display: none; }
-  .alert { background: #d4f5d4; border: 1px solid #1f5d1f; padding: 10px; margin-top: 5px; }
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  h1 { color: #2e6da4; }
+  table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+  th { background-color: #f2f2f2; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Upstate NY Fishing Bite Calculator</h1>
-</header>
-<nav>
-  <button onclick="showTab('forecast')">Forecast & Alerts</button>
-  <button onclick="showTab('manual')">Manual Calculator</button>
-</nav>
-<main>
-  <section id="forecast">
-    <h2>Forecast & Bite Alerts</h2>
-    <label>Bite Alert Threshold: <input type="number" id="threshold" value="65"></label><br>
-    <button onclick="enableNotifications()">Enable Notifications</button>
-    <button onclick="scanForecast()">Scan Next 24h</button>
-    <div id="forecastResults"></div>
-  </section>
-  <section id="manual" class="hidden">
-    <h2>Manual Bite Score Calculator</h2>
-    <label>Species:
-      <select id="species">
-        <option>Bass</option>
-        <option>Walleye</option>
-        <option>Trout</option>
-        <option>Northern Pike</option>
-        <option>Muskellunge</option>
-        <option>Chain Pickerel</option>
-        <option>Perch</option>
-      </select>
-    </label><br>
-    <label>Waterbody:
-      <select id="waterbody">
-        <option>Lake Ontario – Rochester shore</option>
-        <option>Irondequoit Bay</option>
-        <option>Genesee River – lower</option>
-        <option>Conesus Lake</option>
-        <option>Honeoye Lake</option>
-        <option>Hemlock Lake</option>
-        <option>Canadice Lake</option>
-      </select>
-    </label><br>
-    <label>Temperature (°F): <input type="number" id="temp"></label><br>
-    <label>Wind Speed (mph): <input type="number" id="wind"></label><br>
-    <label>Sky Cover (0–100%): <input type="number" id="sky"></label><br>
-    <label>Barometric Trend:
-      <select id="baro">
-        <option>Falling</option>
-        <option>Stable</option>
-        <option>Rising</option>
-      </select>
-    </label><br>
-    <label>Precipitation:
-      <select id="precip">
-        <option>None</option>
-        <option>Light</option>
-        <option>Heavy</option>
-      </select>
-    </label><br>
-    <label>Time of Day:
-      <select id="tod">
-        <option>Dawn</option>
-        <option>Dusk</option>
-        <option>Midday</option>
-        <option>Night</option>
-      </select>
-    </label><br>
-    <button onclick="manualCalc()">Calculate</button>
-    <div id="manualResult" class="result"></div>
-  </section>
-</main>
+<h1>Fishing Bite Likelihood</h1>
+<div id="results">Loading data...</div>
 <script>
-// ----------------- Prevalence Table -----------------
-const prevalence = {
-  "Lake Ontario – Rochester shore": { Bass:6, Walleye:6, Trout:2, "Northern Pike":2, Muskellunge:-4, "Chain Pickerel":-4, Perch:10 },
-  "Irondequoit Bay": { Bass:6, Walleye:4, Trout:-4, "Northern Pike":2, Muskellunge:-4, "Chain Pickerel":2, Perch:6 },
-  "Genesee River – lower": { Bass:6, Walleye:4, Trout:2, "Northern Pike":2, Muskellunge:-4, "Chain Pickerel":-4, Perch:2 },
-  "Conesus Lake": { Bass:4, Walleye:6, Trout:-4, "Northern Pike":6, Muskellunge:-4, "Chain Pickerel":-4, Perch:2 },
-  "Honeoye Lake": { Bass:6, Walleye:6, Trout:-4, "Northern Pike":-4, Muskellunge:-4, "Chain Pickerel":6, Perch:6 },
-  "Hemlock Lake": { Bass:4, Walleye:-4, Trout:6, "Northern Pike":-4, Muskellunge:-4, "Chain Pickerel":2, Perch:2 },
-  "Canadice Lake": { Bass:4, Walleye:-4, Trout:6, "Northern Pike":-4, Muskellunge:-4, "Chain Pickerel":2, Perch:2 }
+// ---- Waterbody Prevalence Factors (example values — update with your dataset) ----
+const waterbodySpeciesFactors = {
+  "Lake Ontario – Rochester shore": { bass: 1.0, walleye: 0.9, trout: 1.0, pike: 0.8, perch: 1.0 },
+  "Irondequoit Bay": { bass: 1.1, walleye: 0.7, trout: 0.4, pike: 0.9, perch: 1.0 },
+  "Genesee River – lower": { bass: 0.9, walleye: 0.8, trout: 0.6, pike: 0.7, perch: 0.9 },
+  "Conesus Lake": { bass: 1.1, walleye: 0.8, trout: 0.3, pike: 0.0, perch: 1.0 },
+  "Honeoye Lake": { bass: 1.2, walleye: 0.2, trout: 0.0, pike: 0.0, perch: 1.1 },
+  "Hemlock Lake": { bass: 1.0, walleye: 0.3, trout: 1.0, pike: 0.0, perch: 0.8 },
+  "Canadice Lake": { bass: 0.9, walleye: 0.3, trout: 1.0, pike: 0.0, perch: 0.7 }
 };
 
-// ----------------- Species Scoring -----------------
-function scoreWeather(species, temp, wind, sky, baro, precip, tod) {
-  let score = 0;
-  function range(val, min, max, bestMin, bestMax) {
-    if (val >= bestMin && val <= bestMax) return 40;
-    let diff = Math.min(Math.abs(val - bestMin), Math.abs(val - bestMax));
-    return Math.max(0, 40 - diff*5);
-  }
+// ---- Species Weather Sensitivity ----
+const speciesWeatherSensitivity = {
+  bass: { temp: [60, 80], windMax: 15 },
+  walleye: { temp: [55, 75], windMax: 20 },
+  trout: { temp: [50, 65], windMax: 15 },
+  pike: { temp: [55, 70], windMax: 18 },
+  perch: { temp: [50, 70], windMax: 15 }
+};
 
-  switch(species) {
-    case "Bass":
-      score += range(temp, 58, 82, 65, 75);
-      if (sky > 50) score += 8; else if (tod==="Midday") score -= 5;
-      if (wind>=4 && wind<=14) score += 10; else if (wind<4) score += 4; else if (wind>22) score -= 4;
-      score += (baro==="Falling"?10:baro==="Stable"?6:2);
-      score += (precip==="Light"?4:precip==="Heavy"?-6:0);
-      score += (tod==="Dawn"||tod==="Dusk"?8:tod==="Midday"?-4:0);
-      break;
-    case "Walleye":
-      score += range(temp, 50, 70, 55, 68);
-      if (tod==="Dawn"||tod==="Dusk"||sky>50) score += 12;
-      if (wind>=6 && wind<=18) score += 10;
-      score += (baro==="Falling"?12:baro==="Stable"?4:0);
-      score += (precip==="Light"?4:precip==="Heavy"?-6:0);
-      if (tod==="Night") score += 8; if (tod==="Dawn"||tod==="Dusk") score += 10;
-      break;
-    case "Trout":
-      score += range(temp, 45, 68, 50, 65);
-      if (sky>50) score += 10; else if (sky<30) score -= 5;
-      if (wind>=3 && wind<=10) score += 6; else if (wind>15) score -= 6;
-      score += (baro==="Stable"?8:baro==="Falling"?6:-2);
-      score += (precip==="Light"?2:precip==="Heavy"?-10:0);
-      if (tod==="Dawn"||tod==="Dusk") score += 6; else if (tod==="Midday") score -= 4;
-      break;
-    case "Northern Pike":
-      score += range(temp, 50, 75, 60, 70);
-      if (sky>50) score += 10;
-      if (wind>=6 && wind<=15) score += 8; else if (wind>20) score -= 4;
-      score += (baro==="Falling"?12:baro==="Stable"?4:-2);
-      score += (precip==="Light"?4:precip==="Heavy"?-6:0);
-      if (tod==="Dawn"||tod==="Dusk") score += 8;
-      break;
-    case "Muskellunge":
-      score += range(temp, 55, 80, 63, 75);
-      if (sky>50) score += 10; else score -= 4;
-      if (wind>=8 && wind<=16) score += 10;
-      score += (baro==="Falling"?15:-5);
-      score += (precip==="Light"?6:precip==="Heavy"?-8:0);
-      if (tod==="Dusk"||tod==="Night") score += 10; else if (tod==="Midday") score -= 6;
-      break;
-    case "Chain Pickerel":
-      score += range(temp, 50, 80, 62, 76);
-      if (sky>50) score += 8;
-      if (wind>=3 && wind<=12) score += 8; else if (wind<3) score += 3;
-      score += (baro==="Falling"?10:baro==="Stable"?6:0);
-      score += (precip==="Light"?4:precip==="Heavy"?-6:0);
-      if (tod==="Dawn"||tod==="Dusk") score += 8;
-      break;
-    case "Perch":
-      score += range(temp, 45, 75, 55, 68);
-      if (sky>30 && sky<70) score += 6;
-      if (wind>=2 && wind<=10) score += 8; else if (wind>15) score -= 4;
-      score += (baro==="Falling"?6:baro==="Stable"?6:-2);
-      score += (precip==="Heavy"?-6:0);
-      if (tod==="Dawn"||tod==="Dusk") score += 4;
-      break;
+// ---- Lunar Bonus Function ----
+function lunarBonus(moonPhase, moonrise, moonset, time) {
+  let bonus = 0;
+  // Phase weighting
+  if (moonPhase < 0.1 || moonPhase > 0.9) { // New Moon
+    bonus += 4; 
+  } else if (Math.abs(moonPhase - 0.5) < 0.1) { // Full Moon
+    bonus += 4;
+  } else if (Math.abs(moonPhase - 0.25) < 0.1 || Math.abs(moonPhase - 0.75) < 0.1) { // Quarters
+    bonus += 2;
+  } else {
+    bonus += 1;
   }
-  return Math.max(0, Math.min(100, score));
+  // Minor periods: moonrise/set ± 60 min
+  const t = time.getTime();
+  if (Math.abs(t - moonrise.getTime()) <= 60*60*1000 ||
+      Math.abs(t - moonset.getTime()) <= 60*60*1000) {
+    bonus += 6;
+  }
+  return bonus;
 }
 
-// ----------------- Forecast Scan -----------------
-async function scanForecast(){
-  const threshold = parseInt(document.getElementById("threshold").value) || 65;
-  const resultsDiv = document.getElementById("forecastResults");
-  resultsDiv.innerHTML = "Loading forecast...";
-  const lakes = Object.keys(prevalence);
-  const speciesList = Object.keys(prevalence[lakes[0]]);
-  let hits = [];
+// ---- Scoring Function ----
+function computeScore(species, waterbody, temp, wind, cloud, precip, moonPhase, moonrise, moonset, time) {
+  let baseScore = 50;
+  // Temperature
+  const [optLow, optHigh] = speciesWeatherSensitivity[species].temp;
+  if (temp >= optLow && temp <= optHigh) baseScore += 10;
+  // Wind penalty
+  if (wind > speciesWeatherSensitivity[species].windMax) baseScore -= 10;
+  // Clouds
+  if (cloud > 50) baseScore += 5;
+  // Precipitation
+  if (precip > 0 && precip < 3) baseScore += 3;
+  // Waterbody prevalence
+  baseScore *= waterbodySpeciesFactors[waterbody][species];
+  // Lunar effect
+  baseScore += lunarBonus(moonPhase, moonrise, moonset, time);
+  return Math.round(baseScore);
+}
 
-  // Example: using Open-Meteo API
-  for (let lake of lakes) {
-    let lat = 43.2, lon = -77.6; // Default Rochester
-    // Could add custom lat/lon per lake here for more accuracy
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,cloudcover,windspeed_10m,precipitation_probability,weathercode&daily=sunrise,sunset&forecast_days=2&timezone=auto`;
-    const data = await fetch(url).then(r=>r.json()).catch(()=>null);
-    if (!data || !data.hourly) continue;
+// ---- Main Fetch ----
+(async function(){
+  const resultsDiv = document.getElementById("results");
+  try {
+    const lat = 43.1656, lon = -77.6114;
+    const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,windspeed_10m,cloudcover,precipitation,moon_phase,moonrise,moonset&timezone=auto`);
+    const weatherData = await weatherRes.json();
 
-    const sunrise = new Date(data.daily.sunrise[0]);
-    const sunset = new Date(data.daily.sunset[0]);
+    const hours = weatherData.hourly.time.map((t, i) => ({
+      time: new Date(t),
+      temp: weatherData.hourly.temperature_2m[i],
+      wind: weatherData.hourly.windspeed_10m[i],
+      cloud: weatherData.hourly.cloudcover[i],
+      precip: weatherData.hourly.precipitation[i],
+      moonPhase: weatherData.hourly.moon_phase[i],
+      moonrise: new Date(weatherData.hourly.moonrise[0]),
+      moonset: new Date(weatherData.hourly.moonset[0])
+    }));
 
-    for (let h=0; h<24; h++) {
-      let t = data.hourly.temperature_2m[h];
-      let w = data.hourly.windspeed_10m[h];
-      let sky = data.hourly.cloudcover[h];
-      let precip = data.hourly.precipitation_probability[h] > 50 ? "Heavy" :
-                   data.hourly.precipitation_probability[h] > 10 ? "Light" : "None";
-      let baro = "Stable"; // Placeholder without actual pressure trend
-      let time = new Date(data.hourly.time[h]);
-      let tod = (time >= sunrise && time <= new Date(sunrise.getTime()+2*3600000)) ? "Dawn" :
-                (time >= new Date(sunset.getTime()-2*3600000) && time <= sunset) ? "Dusk" :
-                (time.getHours() >= 20 || time.getHours() < 5) ? "Night" : "Midday";
-
-      for (let sp of speciesList) {
-        let score = scoreWeather(sp, t, w, sky, baro, precip, tod) + prevalence[lake][sp];
-        if (score >= threshold) {
-          hits.push({lake, species:sp, time:time.toLocaleString(), score});
-          if (Notification.permission==="granted") {
-            new Notification(`${sp} — ${score}`, { body: `${lake} at ${time.toLocaleTimeString()}` });
+    let alerts = [];
+    let tableHTML = "<table><tr><th>Time</th><th>Waterbody</th><th>Species</th><th>Score</th></tr>";
+    for (const h of hours) {
+      for (const waterbody in waterbodySpeciesFactors) {
+        for (const species in speciesWeatherSensitivity) {
+          const score = computeScore(species, waterbody, h.temp, h.wind, h.cloud, h.precip, h.moonPhase, h.moonrise, h.moonset, h.time);
+          tableHTML += `<tr><td>${h.time.toLocaleString()}</td><td>${waterbody}</td><td>${species}</td><td>${score}</td></tr>`;
+          if (score >= 65) {
+            alerts.push({ score, waterbody, species, time: h.time });
           }
         }
       }
     }
+    tableHTML += "</table>";
+    resultsDiv.innerHTML = tableHTML;
+
+    if (alerts.length > 0) {
+      alerts.sort((a,b) => b.score - a.score);
+      const topAlerts = alerts.slice(0, 3);
+      alert("Bite Alerts:\n" + topAlerts.map(a => `${a.species} in ${a.waterbody} at ${a.time.toLocaleTimeString()} — Score ${a.score}`).join("\n"));
+    }
+  } catch (err) {
+    resultsDiv.textContent = "Error loading data: " + err;
   }
-
-  hits.sort((a,b)=>b.score-a.score);
-  resultsDiv.innerHTML = "<h3>Hits ≥ "+threshold+"</h3>" + hits.slice(0,10).map(h=>`<div class="alert">${h.species} — ${h.score} @ ${h.lake} (${h.time})</div>`).join("");
-}
-
-// ----------------- Manual Calculator -----------------
-function manualCalc(){
-  const sp = document.getElementById("species").value;
-  const lake = document.getElementById("waterbody").value;
-  const t = parseFloat(document.getElementById("temp").value);
-  const w = parseFloat(document.getElementById("wind").value);
-  const sky = parseFloat(document.getElementById("sky").value);
-  const baro = document.getElementById("baro").value;
-  const precip = document.getElementById("precip").value;
-  const tod = document.getElementById("tod").value;
-  let score = scoreWeather(sp, t, w, sky, baro, precip, tod) + prevalence[lake][sp];
-  document.getElementById("manualResult").innerHTML = `<b>${score}</b> (includes ${prevalence[lake][sp]} prevalence adj)`;
-}
-
-// ----------------- UI & Notifications -----------------
-function showTab(tab){
-  document.getElementById("forecast").classList.add("hidden");
-  document.getElementById("manual").classList.add("hidden");
-  document.getElementById(tab).classList.remove("hidden");
-}
-
-function enableNotifications(){
-  if ("Notification" in window) {
-    Notification.requestPermission().then(p=>{
-      alert(p==="granted"?"Notifications enabled":"Notifications denied");
-    });
-  } else {
-    alert("Notifications not supported");
-  }
-}
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
+})();
 </script>
 </body>
 </html>
