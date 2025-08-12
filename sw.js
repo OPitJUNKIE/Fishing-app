@@ -1,7 +1,8 @@
 
+// sw.js
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open('bite-v1').then(cache => cache.addAll([
+    caches.open('bite-v3').then(cache => cache.addAll([
       './index.html',
       './manifest.webmanifest',
       './bite_app_icon_512.png'
