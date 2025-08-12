@@ -1,128 +1,258 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Fishing Bite Likelihood</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="bite_app_icon_512.png" type="image/png">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Upstate NY Fishing — v4.3.1</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="bite_app_icon_512.png" type="image/png" />
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  h1 { color: #2e6da4; }
-  table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-  th { background-color: #f2f2f2; }
+  :root{--bg:#0a1220;--card:#0f1c2b;--ink:#eaf1fb;--muted:#b5c1d6;--accent:#7ad3ff;--line:#223045}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:18px 14px 40px}
+  header{display:flex;align-items:center;gap:12px}
+  header img{width:36px;height:36px;border-radius:8px}
+  h1{font-size:1.15rem;margin:0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 6px 24px rgba(0,0,0,.35);margin-top:12px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;margin-right:6px;border:1px solid rgba(255,255,255,.15);color:var(--muted)}
+  input,select,button{font-size:1rem}
+  input,select{padding:10px 12px;border-radius:12px;border:1px solid #2a3c54;background:#0b1725;color:#eaf1fb}
+  button{padding:10px 12px;border-radius:12px;background:var(--accent);border:0;color:#082334;font-weight:700;cursor:pointer}
+  ul{margin:8px 0 0;padding:0}
+  li{list-style:none;margin:6px 0;padding:8px;border:1px solid var(--line);border-radius:10px;background:#0b1725}
+  .tiny{font-size:.85rem;color:var(--muted)}
+  .ok{color:#b7f4c0}
+  .warn{color:#ffd7a6}
+  .err{color:#ffb3ae}
 </style>
 </head>
 <body>
-<h1>Fishing Bite Likelihood</h1>
-<div id="results">Loading data...</div>
+<div class="wrap">
+  <header>
+    <img src="bite_app_icon_512.png" alt="">
+    <h1>Upstate NY Fishing — v4.3.1 (Lunar + Sunrise/Sunset)</h1>
+  </header>
+
+  <div class="card">
+    <div class="row">
+      <span class="pill tiny">Open‑Meteo primary</span>
+      <span class="pill tiny">NOAA fallback</span>
+      <button id="enableNotify">Enable Notifications</button>
+    </div>
+
+    <p class="tiny">Tap **Scan Next 24h**. I’ll compute per‑species bite scores on 7 nearby waters. If any score ≥ your threshold, I’ll show hits (and send foreground notifications).</p>
+
+    <div class="row">
+      <label class="tiny">Threshold:
+        <input id="threshold" type="number" value="65" min="0" max="100" style="width:90px">
+      </label>
+      <button id="scan">Scan Next 24h</button>
+    </div>
+
+    <p id="status" class="tiny"></p>
+    <p id="lunar" class="tiny"></p>
+    <ul id="hits"></ul>
+  </div>
+</div>
+
 <script>
-// ---- Waterbody Prevalence Factors (example values — update with your dataset) ----
-const waterbodySpeciesFactors = {
-  "Lake Ontario – Rochester shore": { bass: 1.0, walleye: 0.9, trout: 1.0, pike: 0.8, perch: 1.0 },
-  "Irondequoit Bay": { bass: 1.1, walleye: 0.7, trout: 0.4, pike: 0.9, perch: 1.0 },
-  "Genesee River – lower": { bass: 0.9, walleye: 0.8, trout: 0.6, pike: 0.7, perch: 0.9 },
-  "Conesus Lake": { bass: 1.1, walleye: 0.8, trout: 0.3, pike: 0.0, perch: 1.0 },
-  "Honeoye Lake": { bass: 1.2, walleye: 0.2, trout: 0.0, pike: 0.0, perch: 1.1 },
-  "Hemlock Lake": { bass: 1.0, walleye: 0.3, trout: 1.0, pike: 0.0, perch: 0.8 },
-  "Canadice Lake": { bass: 0.9, walleye: 0.3, trout: 1.0, pike: 0.0, perch: 0.7 }
-};
+/* ---------- PWA SW ---------- */
+if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
 
-// ---- Species Weather Sensitivity ----
-const speciesWeatherSensitivity = {
-  bass: { temp: [60, 80], windMax: 15 },
-  walleye: { temp: [55, 75], windMax: 20 },
-  trout: { temp: [50, 65], windMax: 15 },
-  pike: { temp: [55, 70], windMax: 18 },
-  perch: { temp: [50, 70], windMax: 15 }
-};
-
-// ---- Lunar Bonus Function ----
-function lunarBonus(moonPhase, moonrise, moonset, time) {
-  let bonus = 0;
-  // Phase weighting
-  if (moonPhase < 0.1 || moonPhase > 0.9) { // New Moon
-    bonus += 4; 
-  } else if (Math.abs(moonPhase - 0.5) < 0.1) { // Full Moon
-    bonus += 4;
-  } else if (Math.abs(moonPhase - 0.25) < 0.1 || Math.abs(moonPhase - 0.75) < 0.1) { // Quarters
-    bonus += 2;
-  } else {
-    bonus += 1;
+/* ---------- Notifications (foreground) ---------- */
+document.getElementById('enableNotify').addEventListener('click', async ()=>{
+  if(!('Notification' in window)) return alert('Notifications not supported');
+  const p=await Notification.requestPermission();
+  alert(p==='granted'?'Notifications enabled (foreground only)':'Permission not granted');
+});
+function notify(title, body){
+  if('Notification' in window && Notification.permission==='granted'){
+    new Notification(title, {body, icon:'bite_app_icon_512.png'});
   }
-  // Minor periods: moonrise/set ± 60 min
-  const t = time.getTime();
-  if (Math.abs(t - moonrise.getTime()) <= 60*60*1000 ||
-      Math.abs(t - moonset.getTime()) <= 60*60*1000) {
-    bonus += 6;
-  }
-  return bonus;
 }
 
-// ---- Scoring Function ----
-function computeScore(species, waterbody, temp, wind, cloud, precip, moonPhase, moonrise, moonset, time) {
-  let baseScore = 50;
-  // Temperature
-  const [optLow, optHigh] = speciesWeatherSensitivity[species].temp;
-  if (temp >= optLow && temp <= optHigh) baseScore += 10;
-  // Wind penalty
-  if (wind > speciesWeatherSensitivity[species].windMax) baseScore -= 10;
-  // Clouds
-  if (cloud > 50) baseScore += 5;
-  // Precipitation
-  if (precip > 0 && precip < 3) baseScore += 3;
-  // Waterbody prevalence
-  baseScore *= waterbodySpeciesFactors[waterbody][species];
-  // Lunar effect
-  baseScore += lunarBonus(moonPhase, moonrise, moonset, time);
-  return Math.round(baseScore);
+/* ---------- Waters (lat/lon) ---------- */
+const WATERS=[
+  ["Lake Ontario (Rochester Shore)",43.2389,-77.5569],
+  ["Irondequoit Bay",43.2166,-77.5283],
+  ["Genesee River (Lower)",43.2561,-77.6079],
+  ["Conesus Lake",42.7556,-77.6833],
+  ["Honeoye Lake",42.7831,-77.5011],
+  ["Hemlock Lake",42.7167,-77.6078],
+  ["Canadice Lake",42.6833,-77.5806]
+];
+
+/* ---------- Species + prevalence (E=+10, G=+6, F=+2, L=-4) ---------- */
+const SPECIES=["bass","walleye","trout","pike","musky","pickerel","perch"];
+const E=10,G=6,F=2,L=-4;
+const PREV={
+  "Lake Ontario (Rochester Shore)":{bass:G,walleye:G,trout:F,pike:F,musky:L,pickerel:L,perch:E},
+  "Irondequoit Bay":{bass:G,walleye:F,trout:L,pike:F,musky:L,pickerel:F,perch:G},
+  "Genesee River (Lower)":{bass:G,walleye:F,trout:F,pike:F,musky:L,pickerel:L,perch:F},
+  "Conesus Lake":{bass:F,walleye:G,trout:L,pike:G,musky:L,pickerel:L,perch:F},
+  "Honeoye Lake":{bass:G,walleye:G,trout:L,pike:L,musky:L,pickerel:G,perch:G},
+  "Hemlock Lake":{bass:F,walleye:L,trout:G,pike:L,musky:L,pickerel:F,perch:F},
+  "Canadice Lake":{bass:F,walleye:L,trout:G,pike:L,musky:L,pickerel:F,perch:F}
+};
+
+/* ---------- Helpers ---------- */
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const fmtHour=h=> (h<12?(h===0?"12am":h+"am"):(h===12?"12pm":(h-12)+"pm"));
+function hourToTOD(h,sunriseH,sunsetH){
+  if(h>=Math.max(0,sunriseH-1) && h<=Math.min(23,sunriseH+1)) return "dawn";
+  if(h>=Math.max(0,sunsetH-1)  && h<=Math.min(23,sunsetH+1))  return "dusk";
+  if(h>=sunriseH+2 && h<=sunsetH-2) return (h>=11&&h<=13)?"midday":"day";
+  return "night";
+}
+function skyFromClouds(cc,tod){ if(tod==='dawn'||tod==='dusk')return'dawn_dusk'; if(cc>=70)return'overcast'; if(cc<=30&&tod==='midday')return'sunny_midday'; return 'mixed'; }
+const precipFromMM=mm => (mm>=5?"heavy":mm>0?"light":"none");
+function baroTrend(series,i){
+  if(!series) return "stable";
+  const w=series.slice(Math.max(0,i-6), Math.min(series.length,i+6));
+  if(w.length<12) return "stable";
+  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  const diff = avg(w.slice(6)) - avg(w.slice(0,6));
+  if(diff<=-3) return "rapid_falling";
+  if(diff<-1.5) return "falling";
+  if(diff>3) return "rapid_rising";
+  if(diff>1.5) return "rising";
+  return "stable";
 }
 
-// ---- Main Fetch ----
-(async function(){
-  const resultsDiv = document.getElementById("results");
-  try {
-    const lat = 43.1656, lon = -77.6114;
-    const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,windspeed_10m,cloudcover,precipitation,moon_phase,moonrise,moonset&timezone=auto`);
-    const weatherData = await weatherRes.json();
+/* ---------- Species calculators (weather-only 0–100) ---------- */
+function sBass(t,sky,wind,baro,precip,tod){let p=0;if(t>=65&&t<=75)p+=40;else if(t>=58&&t<65)p+=clamp((t-58)/(65-58)*30,0,30);else if(t>75&&t<=82)p+=clamp((82-t)/(82-75)*30,0,30);if(tod==="dawn"||tod==="dusk")p+=8;if(sky==="mixed"||sky==="overcast")p+=8;if(sky==="sunny_midday")p-=5;if(wind>=4&&wind<=14)p+=10;else if(wind<=2)p+=4;else if(wind>22)p-=4;const bm={"rapid_falling":10,"falling":10,"stable":6,"rising":2,"rapid_rising":-3};p+=bm[baro]||0;if(precip==="light")p+=4;if(precip==="heavy")p-=6;return clamp(Math.round(p),0,100);}
+function sWalleye(t,sky,wind,baro,precip,tod){let p=0;if(t>=55&&t<=68)p+=40;else if(t>=48&&t<55)p+=clamp((t-48)/(55-48)*28,0,28);else if(t>68&&t<=74)p+=clamp((74-t)/(74-68)*22,0,22);if(tod==="dawn"||tod==="dusk")p+=10;if(tod==="night")p+=8;if(sky==="overcast")p+=12;if(sky==="sunny_midday")p-=6;if(wind>=6&&wind<=18)p+=10;else if(wind<3)p+=2;else if(wind>22)p-=4;const bm={"rapid_falling":12,"falling":12,"stable":4,"rising":0,"rapid_rising":-2};p+=bm[baro]||0;if(precip==="light")p+=4;if(precip==="heavy")p-=6;return clamp(Math.round(p),0,100);}
+function sTrout(t,sky,wind,baro,precip,tod){let p=0;if(t>=50&&t<=65)p+=40;else if(t>=44&&t<50)p+=clamp((t-44)/(50-44)*26,0,26);else if(t>65&&t<=70)p+=clamp((70-t)/(70-65)*18,0,18);if(sky==="overcast")p+=10;if(sky==="sunny_midday")p-=5;if(wind>=3&&wind<=10)p+=6;else if(wind>18)p-=6;const bm={"rapid_falling":-2,"falling":6,"stable":8,"rising":2,"rapid_rising":-2};p+=bm[baro]||0;if(precip==="light")p+=2;if(precip==="heavy")p-=10;if(tod==="dawn"||tod==="dusk")p+=6;if(tod==="midday")p-=4;return clamp(Math.round(p),0,100);}
+function sPike(t,sky,wind,baro,precip,tod){let p=0;if(t>=60&&t<=70)p+=40;else if(t>=52&&t<60)p+=clamp((t-52)/(60-52)*28,0,28);else if(t>70&&t<=76)p+=clamp((76-t)/(76-70)*22,0,22);if(sky==="overcast"||tod==="dawn"||tod==="dusk")p+=10;if(wind>=6&&wind<=15)p+=8;else if(wind>20)p-=4;const bm={"rapid_falling":12,"falling":12,"stable":4,"rising":0,"rapid_rising":-2};p+=bm[baro]||0;if(precip==="light")p+=4;if(precip==="heavy")p-=6;return clamp(Math.round(p),0,100);}
+function sMusky(t,sky,wind,baro,precip,tod){let p=0;if(t>=63&&t<=75)p+=40;else if(t>=56&&t<63)p+=clamp((t-56)/(63-56)*28,0,28);else if(t>75&&t<=80)p+=clamp((80-t)/(80-75)*22,0,22);if(sky==="overcast"||tod==="dusk"||tod==="night")p+=10;if(sky==="sunny_midday")p-=6;if(wind>=8&&wind<=16)p+=10;else if(wind>24)p-=4;const bm={"rapid_falling":15,"falling":12,"stable":4,"rising":-3,"rapid_rising":-5};p+=bm[baro]||0;if(precip==="light")p+=6;if(precip==="heavy")p-=8;if(tod==="midday")p-=6;return clamp(Math.round(p),0,100);}
+function sPickerel(t,sky,wind,baro,precip,tod){let p=0;if(t>=62&&t<=76)p+=40;else if(t>=56&&t<62)p+=clamp((t-56)/(62-56)*28,0,28);else if(t>76&&t<=80)p+=clamp((80-t)/(80-76)*18,0,18);if(sky==="mixed"||sky==="overcast"||tod==="dawn"||tod==="dusk")p+=8;if(wind>=3&&wind<=12)p+=8;else if(wind<2)p+=3;else if(wind>20)p-=4;const bm={"rapid_falling":10,"falling":10,"stable":6,"rising":2,"rapid_rising":-2};p+=bm[baro]||0;if(precip==="light")p+=4;if(precip==="heavy")p-=6;return clamp(Math.round(p),0,100);}
+function sPerch(t,sky,wind,baro,precip,tod){let p=0;if(t>=55&&t<=68)p+=40;else if(t>=48&&t<55)p+=clamp((t-48)/(55-48)*26,0,26);else if(t>68&&t<=74)p+=clamp((74-t)/(74-68)*18,0,18);if(sky==="mixed"||sky==="overcast")p+=6;if(wind>=2&&wind<=10)p+=8;else if(wind>18)p-=4;const bm={"rapid_falling":-2,"falling":6,"stable":6,"rising":4,"rapid_rising":-2};p+=bm[baro]||0;if(precip==="heavy")p-=6;if(tod==="morning"||tod==="evening")p+=4;return clamp(Math.round(p),0,100);}
+const CALC={bass:sBass,walleye:sWalleye,trout:sTrout,pike:sPike,musky:sMusky,pickerel:sPickerel,perch:sPerch};
 
-    const hours = weatherData.hourly.time.map((t, i) => ({
-      time: new Date(t),
-      temp: weatherData.hourly.temperature_2m[i],
-      wind: weatherData.hourly.windspeed_10m[i],
-      cloud: weatherData.hourly.cloudcover[i],
-      precip: weatherData.hourly.precipitation[i],
-      moonPhase: weatherData.hourly.moon_phase[i],
-      moonrise: new Date(weatherData.hourly.moonrise[0]),
-      moonset: new Date(weatherData.hourly.moonset[0])
-    }));
+/* ---------- Lunar helpers ---------- */
+function phaseBoost(phase){ // 0=new, 0.5=full
+  if(phase<0.12 || phase>0.88) return {day:+4, night:+2, label:"New"};
+  if(Math.abs(phase-0.5)<0.12) return {day:+2, night:+4, label:"Full"};
+  if(Math.abs(phase-0.25)<0.12 || Math.abs(phase-0.75)<0.12) return {day:+2, night:+2, label:"Quarter"};
+  return {day:+1, night:+1, label:"Mixed"};
+}
+function isWithin(dt, t0, minutes=60){ return Math.abs(dt - t0)/60000 <= minutes; }
+function lunarBonus(tod, phase, ts, moonrise, moonset){
+  const base=phaseBoost(phase); let bonus=0;
+  if(tod==='dawn'||tod==='day'||tod==='midday'||tod==='dusk') bonus+=base.day;
+  if(tod==='night'||tod==='dusk'||tod==='dawn') bonus+=base.night;
+  try{
+    const mr=new Date(moonrise), ms=new Date(moonset);
+    if(isWithin(ts,mr,60)) bonus+=6;
+    if(isWithin(ts,ms,60)) bonus+=6;
+  }catch(e){}
+  return {bonus,label:base.label};
+}
 
-    let alerts = [];
-    let tableHTML = "<table><tr><th>Time</th><th>Waterbody</th><th>Species</th><th>Score</th></tr>";
-    for (const h of hours) {
-      for (const waterbody in waterbodySpeciesFactors) {
-        for (const species in speciesWeatherSensitivity) {
-          const score = computeScore(species, waterbody, h.temp, h.wind, h.cloud, h.precip, h.moonPhase, h.moonrise, h.moonset, h.time);
-          tableHTML += `<tr><td>${h.time.toLocaleString()}</td><td>${waterbody}</td><td>${species}</td><td>${score}</td></tr>`;
-          if (score >= 65) {
-            alerts.push({ score, waterbody, species, time: h.time });
+/* ---------- Weather fetchers ---------- */
+async function fetchOpenMeteo(lat,lon){
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`+
+    `&hourly=temperature_2m,precipitation,cloud_cover,wind_speed_10m,surface_pressure`+
+    `&daily=sunrise,sunset,moon_phase,moonrise,moonset`+
+    `&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=${encodeURIComponent(tz)}&forecast_days=2`;
+  const r = await fetch(url);
+  if(!r.ok) throw new Error("Open‑Meteo HTTP "+r.status);
+  const j = await r.json();
+  // Hard guard so we never crash on unexpected structure:
+  if(!j || !j.hourly || !Array.isArray(j.hourly.time)) throw new Error("Open‑Meteo missing hourly.time");
+  if(!j.daily || !Array.isArray(j.daily.sunrise) || !j.daily.sunrise[0]) throw new Error("Open‑Meteo missing daily solar data");
+  return {
+    provider:'om',
+    times:j.hourly.time, tempF:j.hourly.temperature_2m, wind:j.hourly.wind_speed_10m,
+    clouds:j.hourly.cloud_cover, precipMM:j.hourly.precipitation, press:j.hourly.surface_pressure,
+    sunrise:j.daily.sunrise[0], sunset:j.daily.sunset[0],
+    moonPhase:j.daily.moon_phase ? j.daily.moon_phase[0] : 0.25,
+    moonrise:j.daily.moonrise ? j.daily.moonrise[0] : null,
+    moonset:j.daily.moonset ? j.daily.moonset[0] : null
+  };
+}
+async function fetchNWS(lat,lon){
+  // Very tolerant fallback; approximates solar/lunar if needed
+  const pts = await fetch(`https://api.weather.gov/points/${lat},${lon}`,{headers:{'Accept':'application/geo+json'}});
+  if(!pts.ok) throw new Error("NWS points HTTP "+pts.status);
+  const pj = await pts.json();
+  const hourlyUrl = pj.properties.forecastHourly;
+  const r = await fetch(hourlyUrl,{headers:{'Accept':'application/geo+json'}});
+  if(!r.ok) throw new Error("NWS hourly HTTP "+r.status);
+  const j = await r.json();
+  const p = (j.properties && j.properties.periods) ? j.properties.periods : [];
+  const now = new Date(); const dateStr = now.toISOString().slice(0,10);
+  return {
+    provider:'nws',
+    times:p.map(x=>x.startTime),
+    tempF:p.map(x=>x.temperature),
+    wind:p.map(x=>{const m=/(\d+)/.exec(x.windSpeed||"");return m?+m[1]:0;}),
+    clouds:null, precipMM:null, press:null, icons:p.map(x=>x.icon), pop:p.map(x=>x.probabilityOfPrecipitation?.value ?? 0),
+    sunrise:`${dateStr}T06:00`, sunset:`${dateStr}T20:00`,
+    moonPhase:0.25, moonrise:`${dateStr}T15:00`, moonset:`${dateStr}T03:00`
+  };
+}
+async function getWX(lat,lon){
+  try{ return await fetchOpenMeteo(lat,lon); }
+  catch(e){ console.warn("Open‑Meteo failed → NWS fallback", e); return await fetchNWS(lat,lon); }
+}
+
+/* ---------- Scan button ---------- */
+document.getElementById('scan').addEventListener('click', async ()=>{
+  const hitsEl = document.getElementById('hits');
+  const statusEl = document.getElementById('status');
+  const lunarEl = document.getElementById('lunar');
+  const threshold = parseInt(document.getElementById('threshold').value||'65',10);
+
+  hitsEl.innerHTML = '';
+  statusEl.innerHTML = 'Fetching…';
+  lunarEl.textContent = '';
+
+  const allHits=[];
+  for(const [name,lat,lon] of WATERS){
+    try{
+      const wx = await getWX(lat,lon);
+      const sunriseH = parseInt(wx.sunrise.split('T')[1].slice(0,2),10);
+      const sunsetH  = parseInt(wx.sunset .split('T')[1].slice(0,2),10);
+      const phase = +wx.moonPhase || 0.25;
+      // show one-line lunar info per water
+      lunarEl.textContent += `${name}: phase ${phase.toFixed(2)}; `;
+
+      const len = Math.min(wx.times.length, 24);
+      for(let i=0;i<len;i++){
+        const ts=new Date(wx.times[i]);
+        const h=ts.getHours();
+        const tod=hourToTOD(h, sunriseH, sunsetH);
+        const temp=wx.tempF[i], wind=wx.wind[i]||0;
+        const sky = (wx.provider==='om') ? skyFromClouds(wx.clouds[i],tod)
+                                         : (function(icon){const m=/(skc|few|sct|bkn|ovc)/.exec(icon||'');const code=m?m[1]:'';return code==='ovc'?'overcast':code==='skc'?(tod==='midday'?'sunny_midday':'mixed'):'mixed';})(wx.icons?wx.icons[i]:null);
+        const precip = (wx.provider==='om') ? precipFromMM(wx.precipMM[i])
+                                            : (((wx.pop?wx.pop[i]:0)||0)>=60?'heavy':((wx.pop?wx.pop[i]:0)||0)>0?'light':'none');
+        const baro = (wx.provider==='om') ? baroTrend(wx.press,i) : 'stable';
+        const lunar = lunarBonus(tod, phase, ts, wx.moonrise, wx.moonset).bonus;
+
+        for(const sp of SPECIES){
+          const base = CALC[sp](temp, sky, wind, baro, precip, tod);
+          const score = clamp(base + (PREV[name]?.[sp]??0) + lunar, 0, 100);
+          if(score>=threshold){
+            allHits.push({name, sp, h, score});
+            notify(`${sp.toUpperCase()} — ${score}`, `${name} at ${fmtHour(h)} (lunar +${lunar})`);
           }
         }
       }
+    }catch(err){
+      console.warn('Failed for', name, err);
+      const li=document.createElement('li'); li.className='tiny err';
+      li.textContent = `Could not fetch weather for ${name} (${err.message||err})`;
+      hitsEl.appendChild(li);
     }
-    tableHTML += "</table>";
-    resultsDiv.innerHTML = tableHTML;
-
-    if (alerts.length > 0) {
-      alerts.sort((a,b) => b.score - a.score);
-      const topAlerts = alerts.slice(0, 3);
-      alert("Bite Alerts:\n" + topAlerts.map(a => `${a.species} in ${a.waterbody} at ${a.time.toLocaleTimeString()} — Score ${a.score}`).join("\n"));
-    }
-  } catch (err) {
-    resultsDiv.textContent = "Error loading data: " + err;
   }
-})();
+  allHits.sort((a,b)=>b.score-a.score);
+  statusEl.innerHTML = allHits.length ? `<span class="ok">${allHits.length} hits ≥ ${threshold}</span>` : `<span class="warn">No hits ≥ ${threshold}</span>`;
+  hitsEl.innerHTML = allHits.length ? allHits.slice(0,20).map(x=>`<li>${x.name} — ${x.sp} at ${fmtHour(x.h)} → ${x.score}</li>`).join('') : '';
+});
 </script>
 </body>
 </html>
