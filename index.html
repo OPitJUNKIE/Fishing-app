@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Upstate NY Fishing Bite Calculator — v4.4</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="bite_app_icon_512.png" type="image/png">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Upstate NY Fishing — v4.4.1 (Debug)</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="bite_app_icon_512.png" type="image/png" />
+<meta name="theme-color" content="#0a3d1e">
 <style>
-  /* ==== v4.2 look & feel (green theme) ==== */
+  /* ===== v4.2 green theme kept ===== */
   :root{
     --bg:#f0f5f0; --pri:#1f5d1f; --pri-dark:#164616; --card:#ffffff; --muted:#355d35;
-    --accent:#2e7d32; --line:#dfe7df;
+    --accent:#2e7d32; --line:#dfe7df; --ink:#172217;
+    --good:#1b5e20; --fair:#8d6e00; --poor:#b71c1c;
+    --chip:#0b1725;
   }
-  html,body{margin:0;background:var(--bg);font-family:Arial,Helvetica,sans-serif;color:#172217}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
   header{background:var(--pri);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px}
   header img{width:28px;height:28px;border-radius:6px}
   header h1{font-size:18px;margin:0}
@@ -23,21 +26,32 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0}
   h2{margin:6px 0 10px;color:var(--pri)}
   label{display:block;margin:6px 0 2px}
-  input,select{width:100%;padding:8px;border:1px solid #c9d5c9;border-radius:8px}
+  input,select{width:100%;padding:10px;border:1px solid #c9d5c9;border-radius:8px;background:#fff}
   .row{display:flex;gap:10px;flex-wrap:wrap}
   .row > div{flex:1 1 180px}
   .btn{background:var(--pri);color:#fff;border:0;padding:10px 12px;border-radius:8px;cursor:pointer}
   .btn:active{background:var(--pri-dark)}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#e8efe8;color:#2a4d2a;margin-right:6px;border:1px solid var(--line)}
   .result{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:10px}
   .hidden{display:none}
   .alert{background:#dff3df;border:1px solid #83c883;border-radius:8px;padding:8px;margin:6px 0}
   .tiny{font-size:.9rem;color:#385a38}
+
+  /* Debug panel */
+  details.debug {margin-top:12px}
+  details.debug summary {cursor:pointer; user-select:none; font-weight:700; color:#2e7d32}
+  .dbg-line{border:1px dashed #cbdacb;border-radius:8px;padding:8px;margin:6px 0;background:#fafdf9}
+  .score-badge{display:inline-block;min-width:48px;text-align:center;font-weight:800;color:#fff;border-radius:6px;padding:2px 6px;margin-right:8px}
+  .score-good{background:var(--good)}
+  .score-fair{background:var(--fair)}
+  .score-poor{background:var(--poor)}
+  .chip{display:inline-block;background:var(--chip);color:#eaf1fb;border-radius:999px;padding:4px 8px;margin:2px 6px 2px 0;font-size:.85rem}
 </style>
 </head>
 <body>
 <header>
   <img src="bite_app_icon_512.png" alt="">
-  <h1>Upstate NY Fishing Bite Calculator — v4.4</h1>
+  <h1>Upstate NY Fishing — v4.4.1 (Debug)</h1>
 </header>
 
 <nav>
@@ -48,26 +62,36 @@
 <main>
   <!-- ===== Forecast & Alerts ===== -->
   <section id="forecast" class="card">
-    <h2>Forecast & Bite Alerts (Next 24 h)</h2>
-    <div class="row">
+    <div class="row" style="align-items:flex-end">
+      <div>
+        <h2>Next 24 h Bite Scan</h2>
+        <div class="pill tiny">Open‑Meteo primary</div>
+        <div class="pill tiny">NOAA fallback</div>
+        <div class="pill tiny">Lunar phase + rise/set</div>
+      </div>
       <div>
         <label>Bite Alert Threshold</label>
         <input id="threshold" type="number" min="0" max="100" value="65">
       </div>
-      <div style="align-self:flex-end">
+      <div>
         <button class="btn" id="enableNotify">Enable Notifications</button>
         <button class="btn" id="scan">Scan Next 24 h</button>
       </div>
     </div>
-    <p class="tiny">Uses Open‑Meteo (primary) with NOAA fallback. Includes **lunar phase** bias and **moonrise/moonset** (±60 min) boosts.</p>
-    <div id="status" class="tiny"></div>
+
+    <p id="status" class="tiny"></p>
     <div id="lunarLine" class="tiny"></div>
     <div id="forecastResults" class="result"></div>
+
+    <details class="debug" id="debugPanel">
+      <summary>Show Debug Info</summary>
+      <div id="debugContent"></div>
+    </details>
   </section>
 
-  <!-- ===== Manual Calculator (with lunar controls) ===== -->
+  <!-- ===== Manual Calculator ===== -->
   <section id="manual" class="card hidden">
-    <h2>Manual Bite Score Calculator</h2>
+    <h2>Manual Bite Score</h2>
     <div class="row">
       <div>
         <label>Species</label>
@@ -83,24 +107,16 @@
       </div>
       <div>
         <label>Waterbody</label>
-        <select id="waterbody">
-          <option>Lake Ontario – Rochester shore</option>
-          <option>Irondequoit Bay</option>
-          <option>Genesee River – lower</option>
-          <option>Conesus Lake</option>
-          <option>Honeoye Lake</option>
-          <option>Hemlock Lake</option>
-          <option>Canadice Lake</option>
-        </select>
+        <select id="waterbody"></select>
       </div>
     </div>
 
     <div class="row">
-      <div><label>Temperature (°F)</label><input id="temp" type="number" placeholder="e.g., 68"></div>
-      <div><label>Wind (mph)</label><input id="wind" type="number" placeholder="e.g., 7"></div>
+      <div><label>Temperature (°F)</label><input id="m_temp" type="number" placeholder="e.g., 68"></div>
+      <div><label>Wind (mph)</label><input id="m_wind" type="number" placeholder="e.g., 7"></div>
       <div>
         <label>Sky Cover</label>
-        <select id="sky">
+        <select id="m_sky">
           <option>Sunny (midday)</option>
           <option>Mixed / Partly</option>
           <option>Overcast</option>
@@ -110,7 +126,7 @@
       </div>
       <div>
         <label>Barometric Trend</label>
-        <select id="baro">
+        <select id="m_baro">
           <option>Falling</option>
           <option>Stable</option>
           <option>Rising</option>
@@ -118,7 +134,7 @@
       </div>
       <div>
         <label>Precipitation</label>
-        <select id="precip">
+        <select id="m_precip">
           <option>None</option>
           <option>Light</option>
           <option>Heavy</option>
@@ -126,11 +142,11 @@
       </div>
     </div>
 
-    <!-- Lunar controls for manual calc -->
+    <!-- Lunar controls -->
     <div class="row">
       <div>
         <label>Lunar Phase</label>
-        <select id="lunarPhase">
+        <select id="m_phase">
           <option value="new">New</option>
           <option value="quarter">Quarter</option>
           <option value="full">Full</option>
@@ -139,14 +155,14 @@
       </div>
       <div>
         <label>Near Moonrise/Moonset?</label>
-        <select id="nearMoon">
+        <select id="m_near">
           <option value="no" selected>No</option>
           <option value="yes">Yes (±60 min)</option>
         </select>
       </div>
       <div>
         <label>Time of Day</label>
-        <select id="tod">
+        <select id="m_tod">
           <option>Dawn</option>
           <option>Dusk</option>
           <option>Midday</option>
@@ -156,13 +172,13 @@
       </div>
     </div>
 
-    <button class="btn" onclick="manualCalc()">Calculate</button>
+    <button class="btn" id="m_go">Calculate</button>
     <div id="manualResult" class="result"></div>
   </section>
 </main>
 
 <script>
-/* ========== Tabs ========== */
+/* ---------- Tabs ---------- */
 function showTab(id){
   document.getElementById('forecast').classList.add('hidden');
   document.getElementById('manual').classList.add('hidden');
@@ -171,9 +187,9 @@ function showTab(id){
   document.getElementById('tab-manual').classList.toggle('active', id==='manual');
 }
 
-/* ========== Notifications (foreground only on iOS PWAs) ========== */
+/* ---------- Notifications (foreground only) ---------- */
 document.getElementById('enableNotify').addEventListener('click', async ()=>{
-  if(!('Notification' in window)) return alert('Notifications not supported here');
+  if(!('Notification' in window)) return alert('Notifications not supported');
   const p=await Notification.requestPermission();
   alert(p==='granted'?'Notifications enabled (while app is open).':'Permission not granted.');
 });
@@ -183,29 +199,8 @@ function notify(title, body){
   }
 }
 
-/* ========== Waters & Prevalence (same as 4.2) ========== */
-const WATERS=[
-  ["Lake Ontario – Rochester shore",43.2389,-77.5569],
-  ["Irondequoit Bay",43.2166,-77.5283],
-  ["Genesee River – lower",43.2561,-77.6079],
-  ["Conesus Lake",42.7556,-77.6833],
-  ["Honeoye Lake",42.7831,-77.5011],
-  ["Hemlock Lake",42.7167,-77.6078],
-  ["Canadice Lake",42.6833,-77.5806]
-];
-const E=10,G=6,F=2,L=-4;
-const PREV={
-  "Lake Ontario – Rochester shore":{ "Bass":G,"Walleye":G,"Trout":F,"Northern Pike":F,"Muskellunge":L,"Chain Pickerel":L,"Perch":E },
-  "Irondequoit Bay":{ "Bass":G,"Walleye":F,"Trout":L,"Northern Pike":F,"Muskellunge":L,"Chain Pickerel":F,"Perch":G },
-  "Genesee River – lower":{ "Bass":G,"Walleye":F,"Trout":F,"Northern Pike":F,"Muskellunge":L,"Chain Pickerel":L,"Perch":F },
-  "Conesus Lake":{ "Bass":F,"Walleye":G,"Trout":L,"Northern Pike":G,"Muskellunge":L,"Chain Pickerel":L,"Perch":F },
-  "Honeoye Lake":{ "Bass":G,"Walleye":G,"Trout":L,"Northern Pike":L,"Muskellunge":L,"Chain Pickerel":G,"Perch":G },
-  "Hemlock Lake":{ "Bass":F,"Walleye":L,"Trout":G,"Northern Pike":L,"Muskellunge":L,"Chain Pickerel":F,"Perch":F },
-  "Canadice Lake":{ "Bass":F,"Walleye":L,"Trout":G,"Northern Pike":L,"Muskellunge":L,"Chain Pickerel":F,"Perch":F }
-};
-
-/* ========== Species calculators (same behavior as 4.2) ========== */
-function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+/* ---------- Species calculators (weather-only 0–100) ---------- */
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 function sBass(t,sky,wind,baro,precip,tod){let p=0;if(t>=65&&t<=75)p+=40;else if(t>=58&&t<65)p+=clamp((t-58)/(65-58)*30,0,30);else if(t>75&&t<=82)p+=clamp((82-t)/(82-75)*30,0,30);if(tod==="Dawn"||tod==="Dusk")p+=8;if(sky==="Mixed / Partly"||sky==="Overcast")p+=8;if(sky==="Sunny (midday)")p-=5;if(wind>=4&&wind<=14)p+=10;else if(wind<=2)p+=4;else if(wind>22)p-=4;const bm={"Falling":10,"Stable":6,"Rising":2};p+=bm[baro]||0;if(precip==="Light")p+=4;if(precip==="Heavy")p-=6;return clamp(Math.round(p),0,100);}
 function sWalleye(t,sky,wind,baro,precip,tod){let p=0;if(t>=55&&t<=68)p+=40;else if(t>=48&&t<55)p+=clamp((t-48)/(55-48)*28,0,28);else if(t>68&&t<=74)p+=clamp((74-t)/(74-68)*22,0,22);if(tod==="Dawn"||tod==="Dusk")p+=10;if(tod==="Night")p+=8;if(sky==="Overcast")p+=12;if(sky==="Sunny (midday)")p-=6;if(wind>=6&&wind<=18)p+=10;else if(wind<3)p+=2;else if(wind>22)p-=4;const bm={"Falling":12,"Stable":4,"Rising":0};p+=bm[baro]||0;if(precip==="Light")p+=4;if(precip==="Heavy")p-=6;return clamp(Math.round(p),0,100);}
 function sTrout(t,sky,wind,baro,precip,tod){let p=0;if(t>=50&&t<=65)p+=40;else if(t>=44&&t<50)p+=clamp((t-44)/(50-44)*26,0,26);else if(t>65&&t<=70)p+=clamp((70-t)/(70-65)*18,0,18);if(sky==="Overcast")p+=10;if(sky==="Sunny (midday)")p-=5;if(wind>=3&&wind<=10)p+=6;else if(wind>18)p-=6;const bm={"Falling":6,"Stable":8,"Rising":2};p+=bm[baro]||0;if(precip==="Light")p+=2;if(precip==="Heavy")p-=10;if(tod==="Dawn"||tod==="Dusk")p+=6;if(tod==="Midday")p-=4;return clamp(Math.round(p),0,100);}
@@ -213,47 +208,93 @@ function sPike(t,sky,wind,baro,precip,tod){let p=0;if(t>=60&&t<=70)p+=40;else if
 function sMusky(t,sky,wind,baro,precip,tod){let p=0;if(t>=63&&t<=75)p+=40;else if(t>=56&&t<63)p+=clamp((t-56)/(63-56)*28,0,28);else if(t>75&&t<=80)p+=clamp((80-t)/(80-75)*22,0,22);if(sky==="Overcast"||tod==="Dusk"||tod==="Night")p+=10;if(sky==="Sunny (midday)")p-=6;if(wind>=8&&wind<=16)p+=10;else if(wind>24)p-=4;const bm={"Falling":15,"Stable":4,"Rising":-3};p+=bm[baro]||0;if(precip==="Light")p+=6;if(precip==="Heavy")p-=8;if(tod==="Midday")p-=6;return clamp(Math.round(p),0,100);}
 function sPickerel(t,sky,wind,baro,precip,tod){let p=0;if(t>=62&&t<=76)p+=40;else if(t>=56&&t<62)p+=clamp((t-56)/(62-56)*28,0,28);else if(t>76&&t<=80)p+=clamp((80-t)/(80-76)*18,0,18);if(sky==="Mixed / Partly"||sky==="Overcast"||tod==="Dawn"||tod==="Dusk")p+=8;if(wind>=3&&wind<=12)p+=8;else if(wind<2)p+=3;else if(wind>20)p-=4;const bm={"Falling":10,"Stable":6,"Rising":2};p+=bm[baro]||0;if(precip==="Light")p+=4;if(precip==="Heavy")p-=6;return clamp(Math.round(p),0,100);}
 function sPerch(t,sky,wind,baro,precip,tod){let p=0;if(t>=55&&t<=68)p+=40;else if(t>=48&&t<55)p+=clamp((t-48)/(55-48)*26,0,26);else if(t>68&&t<=74)p+=clamp((74-t)/(74-68)*18,0,18);if(sky==="Mixed / Partly"||sky==="Overcast")p+=6;if(wind>=2&&wind<=10)p+=8;else if(wind>18)p-=4;const bm={"Falling":6,"Stable":6,"Rising":4};p+=bm[baro]||0;if(precip==="Heavy")p-=6;if(tod==="Dawn"||tod==="Dusk")p+=4;return clamp(Math.round(p),0,100);}
+const CALC={"Bass":sBass,"Walleye":sWalleye,"Trout":sTrout,"Northern Pike":sPike,"Muskellunge":sMusky,"Chain Pickerel":sPickerel,"Perch":sPerch};
 
-/* ========== Lunar logic (phase + moonrise/moonset) ========== */
-function phaseBoost(label){ // v4.3 logic
-  if(label==='new')   return {day:+4, night:+2, label:'New'};
-  if(label==='full')  return {day:+2, night:+4, label:'Full'};
-  if(label==='quarter')return {day:+2, night:+2, label:'Quarter'};
-  return {day:+1, night:+1, label:'Mixed'};
+/* ---------- Lunar helpers ---------- */
+function phaseLabelFrom0to1(p){
+  if(p<0.12||p>0.88) return 'new';
+  if(Math.abs(p-0.5)<0.12) return 'full';
+  if(Math.abs(p-0.25)<0.12 || Math.abs(p-0.75)<0.12) return 'quarter';
+  return 'other';
 }
-function isWithin(ms, target, minutes=60){ if(!target) return false; return Math.abs(ms - new Date(target).getTime()) <= minutes*60000; }
-function lunarBonus(tod, phaseLabel, tsMS, moonrise, moonset){
-  const base=phaseBoost(phaseLabel); let bonus=0;
+function phaseBoost(label){
+  if(label==='new')   return {day:+4, night:+2};
+  if(label==='full')  return {day:+2, night:+4};
+  if(label==='quarter')return {day:+2, night:+2};
+  return {day:+1, night:+1};
+}
+function isWithin(dt, t0, minutes=60){ if(!t0) return false; return Math.abs(dt - new Date(t0))/60000 <= minutes; }
+function lunarBonus(tod, phaseLbl, ts, moonrise, moonset){
+  const base=phaseBoost(phaseLbl); let bonus=0;
   if(tod==='Dawn'||tod==='Day'||tod==='Midday'||tod==='Dusk') bonus+=base.day;
   if(tod==='Night'||tod==='Dusk'||tod==='Dawn') bonus+=base.night;
-  if(isWithin(tsMS, moonrise, 60)) bonus+=6;
-  if(isWithin(tsMS, moonset, 60)) bonus+=6;
+  if(isWithin(ts,moonrise,60)) bonus+=6;
+  if(isWithin(ts,moonset,60)) bonus+=6;
   return bonus;
 }
 
-/* ========== Forecast scanner ========== */
+/* ---------- Time of day & weather helpers ---------- */
 function hourToTOD(h,sunriseH,sunsetH){
   if(h>=Math.max(0,sunriseH-1)&&h<=Math.min(23,sunriseH+1))return"Dawn";
   if(h>=Math.max(0,sunsetH-1)&&h<=Math.min(23,sunsetH+1))return"Dusk";
   if(h>=sunriseH+2&&h<=sunsetH-2)return(h>=11&&h<=13)?"Midday":"Day";
   return"Night";
 }
-function skyFromClouds(cc,tod){ if(tod==='Dawn'||tod==='Dusk')return'Dawn/Dusk light'; if(cc>=70)return'Overcast'; if(cc<=30&&tod==='Midday')return'Sunny (midday)'; return'Mixed / Partly'; }
+function skyFromClouds(cc,tod){ if(tod==='Dawn'||tod==='Dusk')return'Dawn/Dusk light'; if(cc>=70)return'Overcast'; if(cc<=30&&tod==='Midday')return'Sunny (midday)'; return 'Mixed / Partly'; }
 const precipFromMM=mm=> mm>=5?'Heavy':mm>0?'Light':'None';
+function baroTrend(series,i){
+  if(!series) return "Stable";
+  const w=series.slice(Math.max(0,i-6), Math.min(series.length,i+6));
+  if(w.length<12) return "Stable";
+  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  const diff=avg(w.slice(6))-avg(w.slice(0,6));
+  if(diff<=-3) return "Falling";
+  if(diff>1.5) return "Rising";
+  return "Stable";
+}
 
+/* ---------- Load water list & prevalence from JSON ---------- */
+let WATERS=[], PREV={}, PREV_SCALE={E:10,G:6,F:2,L:-4,A:-12};
+async function loadPrevalence(){
+  const r = await fetch('lake_species.json',{cache:'no-store'});
+  if(!r.ok) throw new Error('Failed to load lake_species.json');
+  const j = await r.json();
+  WATERS = j.waters.map(w=>[w.name, w.lat, w.lon]);
+  PREV = {};
+  for(const w of j.waters){ PREV[w.name]=w.prevalence; }
+  // Populate manual waterbody select
+  const sel=document.getElementById('waterbody');
+  sel.innerHTML = WATERS.map(w=>`<option>${w[0]}</option>`).join('');
+}
+
+/* ---------- Weather fetchers ---------- */
 async function fetchOpenMeteo(lat,lon){
   const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,cloud_cover,wind_speed_10m,surface_pressure&daily=sunrise,sunset,moon_phase,moonrise,moonset&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=${encodeURIComponent(tz)}&forecast_days=2`;
-  const r=await fetch(url); if(!r.ok) throw new Error('Open‑Meteo HTTP '+r.status);
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`+
+    `&hourly=temperature_2m,precipitation,cloud_cover,wind_speed_10m,surface_pressure`+
+    `&daily=sunrise,sunset,moon_phase,moonrise,moonset`+
+    `&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=${encodeURIComponent(tz)}&forecast_days=2`;
+  const r=await fetch(url);
+  if(!r.ok) throw new Error('Open‑Meteo HTTP '+r.status);
   const j=await r.json();
   if(!j?.hourly?.time?.length) throw new Error('Open‑Meteo missing hourly');
+  const phase0 = (j.daily?.moon_phase?.[0] ?? 0.25);
+  const phase1 = (j.daily?.moon_phase?.[1] ?? phase0);
+  const phaseLbl = phaseLabelFrom0to1( (typeof phase0==='number' && !Number.isNaN(phase0)) ? phase0 : phase1 );
   return {
     provider:'om',
-    times:j.hourly.time, temp:j.hourly.temperature_2m, wind:j.hourly.wind_speed_10m, cc:j.hourly.cloud_cover, pr:j.hourly.precipitation, sp:j.hourly.surface_pressure,
-    sunrise:j.daily.sunrise[0], sunset:j.daily.sunset[0],
-    // map phase 0..1 to a label for our boost
-    phaseLabel:(()=>{const p=j.daily.moon_phase?.[0]??0.25; if(p<0.12||p>0.88)return'new'; if(Math.abs(p-0.5)<0.12)return'full'; if(Math.abs(p-0.25)<0.12||Math.abs(p-0.75)<0.12)return'quarter'; return'other';})(),
-    moonrise:j.daily.moonrise?.[0]??null, moonset:j.daily.moonset?.[0]??null
+    times:j.hourly.time,
+    temp:j.hourly.temperature_2m,
+    wind:j.hourly.wind_speed_10m,
+    cc:j.hourly.cloud_cover,
+    pr:j.hourly.precipitation,
+    sp:j.hourly.surface_pressure,
+    sunrise:j.daily.sunrise?.[0],
+    sunset:j.daily.sunset?.[0],
+    phaseLabel:phaseLbl,
+    moonrise:j.daily.moonrise?.[0]??null,
+    moonset:j.daily.moonset?.[0]??null,
+    _raw:j
   };
 }
 async function fetchNWS(lat,lon){
@@ -267,86 +308,176 @@ async function fetchNWS(lat,lon){
   const now=new Date(); const dateStr=now.toISOString().slice(0,10);
   return {
     provider:'nws',
-    times:p.map(x=>x.startTime), temp:p.map(x=>x.temperature), wind:p.map(x=>{const m=/(\d+)/.exec(x.windSpeed||'');return m?+m[1]:0;}), cc:p.map(_=>50), pr:p.map(x=>0), sp:null,
-    sunrise:`${dateStr}T06:00`, sunset:`${dateStr}T20:00`, phaseLabel:'other', moonrise:`${dateStr}T15:00`, moonset:`${dateStr}T03:00`
+    times:p.map(x=>x.startTime),
+    temp:p.map(x=>x.temperature),
+    wind:p.map(x=>{const m=/(\d+)/.exec(x.windSpeed||'');return m?+m[1]:0;}),
+    cc:p.map(_=>50),
+    pr:p.map(x=>0),
+    sp:null,
+    sunrise:`${dateStr}T06:00`,
+    sunset:`${dateStr}T20:00`,
+    phaseLabel:'other',
+    moonrise:`${dateStr}T15:00`,
+    moonset:`${dateStr}T03:00`,
+    _raw:j
   };
 }
-async function getWX(lat,lon){ try{return await fetchOpenMeteo(lat,lon);}catch(e){console.warn('OM failed',e);return await fetchNWS(lat,lon);} }
+async function getWX(lat,lon){
+  try{ return await fetchOpenMeteo(lat,lon); }
+  catch(e){ console.warn('Open‑Meteo failed → NWS fallback', e); return await fetchNWS(lat,lon); }
+}
+
+/* ---------- Forecast Scan (debug-friendly) ---------- */
+const dbg = (label, obj)=>console.log(`[DBG] ${label}`, obj);
 
 document.getElementById('scan').addEventListener('click', async ()=>{
+  await ensureSW(); // make sure SW is registered before we fetch/calc
   const threshold=parseInt(document.getElementById('threshold').value||'65',10);
-  const out=document.getElementById('forecastResults'); out.innerHTML='Fetching forecast…';
+  const out=document.getElementById('forecastResults'); out.innerHTML='Fetching…';
   const status=document.getElementById('status'); status.textContent='';
   const lunarLine=document.getElementById('lunarLine'); lunarLine.textContent='';
-  const hits=[];
+  const dPanel=document.getElementById('debugContent'); dPanel.innerHTML='';
+  const allEvents=[];
+
+  try{
+    if(!WATERS.length) await loadPrevalence();
+  }catch(err){
+    out.innerHTML = `<div class="dbg-line">Failed to load <b>lake_species.json</b>: ${err.message}</div>`;
+    return;
+  }
+
   for(const [name,lat,lon] of WATERS){
     try{
       const wx=await getWX(lat,lon);
+      dbg(`RAW ${name}`, wx._raw);
       lunarLine.textContent += `${name}: ${wx.phaseLabel}; `;
       const sunriseH=parseInt(wx.sunrise.split('T')[1].slice(0,2),10);
       const sunsetH =parseInt(wx.sunset .split('T')[1].slice(0,2),10);
       const len=Math.min(wx.times.length,24);
+
       for(let i=0;i<len;i++){
         const ts=new Date(wx.times[i]); const h=ts.getHours();
         const tod=hourToTOD(h, sunriseH, sunsetH);
+        const temp=wx.temp[i], wind=wx.wind[i]||0;
         const sky=skyFromClouds(wx.cc[i]??50, tod);
         const precip=precipFromMM(wx.pr[i]??0);
-        const baro=(wx.sp)?(()=>{const arr=wx.sp; const w=arr.slice(Math.max(0,i-6),Math.min(arr.length,i+6)); if(w.length<12)return"Stable"; const avg=a=>a.reduce((x,y)=>x+y,0)/a.length; const diff=avg(w.slice(6))-avg(w.slice(0,6)); if(diff<=-3)return"Falling"; if(diff>1.5)return"Rising"; return"Stable";})():"Stable";
-        const lunar=lunarBonus(tod, wx.phaseLabel, ts.getTime(), wx.moonrise, wx.moonset);
+        const baro=baroTrend(wx.sp,i);
+        const lunar=lunarBonus(tod, wx.phaseLabel, ts, wx.moonrise, wx.moonset);
+        const prevMap=PREV[name]||{};
+        for(const sp of Object.keys(CALC)){
+          const base = CALC[sp](temp, sky, wind, baro, precip, tod);
+          const prevCode = prevMap[sp] ?? 'F';
+          const prevPts = PREV_SCALE[prevCode] ?? 0;
+          const final = clamp(base + prevPts + lunar, 0, 100);
 
-        for(const sp of ["Bass","Walleye","Trout","Northern Pike","Muskellunge","Chain Pickerel","Perch"]){
-          const base={
-            "Bass":sBass,"Walleye":sWalleye,"Trout":sTrout,"Northern Pike":sPike,"Muskellunge":sMusky,"Chain Pickerel":sPickerel,"Perch":sPerch
-          }[sp](wx.temp[i], sky, wx.wind[i], baro, precip, tod);
-          const final=clamp(base + (PREV[name]?.[sp]||0) + lunar,0,100);
-          if(final>=threshold){
-            hits.push({name,species:sp,h,score:final});
-            notify(`${sp.toUpperCase()} — ${final}`, `${name} at ${(h%12)||12}${h<12?'am':'pm'} (lunar +${lunar})`);
-          }
+          // Debug bundle
+          allEvents.push({
+            score: final, water: name, species: sp, hour:h,
+            breakdown:{
+              Base: base, TOD: tod, Sky: sky, Wind: wind, Temp: temp,
+              Baro: baro, Precip: precip,
+              LunarPhase: wx.phaseLabel, Moonrise: wx.moonrise, Moonset: wx.moonset, LunarBonus: lunar,
+              PrevalenceCode: prevCode, PrevalencePts: prevPts
+            }
+          });
         }
       }
     }catch(err){
-      hits.push({name, species:"(fetch error)", h:"–", score:0});
+      allEvents.push({score:0, water:name, species:"(fetch error)", hour:"–", breakdown:{Error:err.message||String(err)}});
     }
   }
-  hits.sort((a,b)=>b.score-a.score);
+
+  // Sort & display
+  allEvents.sort((a,b)=>b.score-a.score);
+  const hits = allEvents.filter(e=>e.score>=threshold);
   status.textContent = hits.length ? `Found ${hits.length} hits ≥ ${threshold}` : `No hits ≥ ${threshold}`;
-  out.innerHTML = hits.length
-    ? hits.slice(0,20).map(h=>`<div class="alert">${h.species} — <b>${h.score}</b> · ${h.name} at ${(h.h%12)||12}${h.h<12?'am':'pm'}</div>`).join("")
-    : "<div>No qualifying times in the next 24h.</div>";
+
+  // Results list (top 20)
+  out.innerHTML = hits.slice(0,20).map(h=>{
+    const when = (h.hour%12)||12; const ampm = h.hour<12?'am':'pm';
+    return `<div class="alert">${h.species} — <b>${h.score}</b> · ${h.water} at ${when}${ampm}</div>`;
+  }).join('') || "<div>No qualifying times in the next 24h.</div>";
+
+  // Debug panel (top 10 with full breakdown, color-coded)
+  const topDbg = allEvents.slice(0,10).map(ev=>{
+    const cls = ev.score>=65?'score-good':(ev.score>=40?'score-fair':'score-poor');
+    const when = (ev.hour==='–'?'–':`${(ev.hour%12)||12}${ev.hour<12?'am':'pm'}`);
+    const b=ev.breakdown;
+    return `<div class="dbg-line">
+      <span class="score-badge ${cls}">${ev.score}</span>
+      <b>${ev.species}</b> · ${ev.water} · ${when}
+      <div class="tiny" style="margin-top:6px">
+        <span class="chip">Base ${b.Base}</span>
+        <span class="chip">TOD ${b.TOD}</span>
+        <span class="chip">Baro ${b.Baro}</span>
+        <span class="chip">Sky ${b.Sky}</span>
+        <span class="chip">Precip ${b.Precip}</span>
+        <span class="chip">Temp ${b.Temp}°F</span>
+        <span class="chip">Lunar ${b.LunarPhase} (+${b.LunarBonus})</span>
+        <span class="chip">Prev ${b.PrevalenceCode} (${b.PrevalencePts>=0?'+':''}${b.PrevalencePts})</span>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('debugContent').innerHTML = topDbg || '<div class="dbg-line">No debug items.</div>';
+
+  // Smarter notifications: top 3 distinct events only
+  const top3 = hits.slice(0,3);
+  top3.forEach(h=>{
+    const when = (h.hour%12)||12; const ampm = h.hour<12?'AM':'PM';
+    notify(`🎣 ${h.species} — ${h.score}`, `${h.water} around ${when} ${ampm}`);
+  });
+
+  // Console debug
+  dbg('TOP_10', allEvents.slice(0,10));
+  dbg('HITS', hits.slice(0,10));
 });
 
-/* ========== Manual calculator (adds lunar inputs) ========== */
-function manualCalc(){
+/* ---------- Manual calculator ---------- */
+document.getElementById('m_go').addEventListener('click', ()=>{
   const sp=document.getElementById('species').value;
   const lake=document.getElementById('waterbody').value;
-  const t=parseFloat(document.getElementById('temp').value||'0');
-  const w=parseFloat(document.getElementById('wind').value||'0');
-  const skySel=document.getElementById('sky').value;
-  const baro=document.getElementById('baro').value;
-  const precip=document.getElementById('precip').value;
-  const tod=document.getElementById('tod').value;
-  // Map sky select to labels used by species fns
-  const sky = skySel;
-  // Lunar controls:
-  const phaseLabel = document.getElementById('lunarPhase').value; // new|quarter|full|other
-  const nearMoon   = document.getElementById('nearMoon').value==='yes' ? 6 : 0; // add +6 if near rise/set
-  let lunar = phaseBoost(phaseLabel).day + phaseBoost(phaseLabel).night + nearMoon;
-  // Adjust: if TOD is Night, weight night more (same logic as scanner)
-  if(tod==='Night') lunar += 2;
+  const t=parseFloat(document.getElementById('m_temp').value||'0');
+  const w=parseFloat(document.getElementById('m_wind').value||'0');
+  const sky=document.getElementById('m_sky').value;
+  const baro=document.getElementById('m_baro').value;
+  const precip=document.getElementById('m_precip').value;
+  const tod=document.getElementById('m_tod').value;
 
-  const base={
-    "Bass":sBass,"Walleye":sWalleye,"Trout":sTrout,"Northern Pike":sPike,"Muskellunge":sMusky,"Chain Pickerel":sPickerel,"Perch":sPerch
-  }[sp](t, sky, w, baro, precip, tod);
-  const final = clamp(base + (PREV[lake]?.[sp]||0) + lunar, 0, 100);
+  // Lunar controls
+  const phaseLabel=document.getElementById('m_phase').value; // new|quarter|full|other
+  const near=document.getElementById('m_near').value==='yes'?6:0;
+  const phase = phaseBoost(phaseLabel);
+  let lunar = phase.day + phase.night + near;
+  if(tod==='Night') lunar += 2; // slight bias at night
+
+  const base = CALC[sp](t, sky, w, baro, precip, tod);
+  const prevCode = PREV[lake]?.[sp] ?? 'F';
+  const prevPts  = PREV_SCALE[prevCode] ?? 0;
+  const final = clamp(base + prevPts + lunar, 0, 100);
 
   document.getElementById('manualResult').innerHTML =
     `<b>Score: ${final}</b><br>
-     Weather model: ${base} &nbsp;|&nbsp; Lake adj: ${PREV[lake][sp]??0} &nbsp;|&nbsp; Lunar: ${lunar}`;
+     Base: ${base} &nbsp;|&nbsp; Lake: ${prevCode} (${prevPts>=0?'+':''}${prevPts}) &nbsp;|&nbsp; Lunar: +${lunar}`;
+});
+
+/* ---------- PWA SW ---------- */
+async function ensureSW(){
+  if(!('serviceWorker' in navigator)) return;
+  try{
+    const reg = await navigator.serviceWorker.register('sw.js');
+    return reg;
+  }catch(e){ console.warn('SW register failed', e); }
 }
 
-/* ========== PWA SW ========== */
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+/* ---------- Init ---------- */
+(async ()=>{
+  try{
+    await ensureSW();
+    await loadPrevalence();
+  }catch(e){
+    console.warn('Init issue', e);
+  }
+})();
 </script>
 </body>
 </html>
