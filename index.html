@@ -132,7 +132,7 @@
 </div>
 
 <script>
-if ('serviceWorker' in navigator) {
+ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(console.error); });
 }
 const bands = {"trout":{"ideal":[50,65],"usable":[44,49,66,70]},"salmon":{"ideal":[50,65],"usable":[44,49,66,70]},"bass":{"ideal":[65,75],"usable":[58,64,76,82]},"walleye":{"ideal":[55,68],"usable":[48,54,69,74]},"pike":{"ideal":[60,70],"usable":[52,59,71,76]},"musky":{"ideal":[60,70],"usable":[52,59,71,76]},"panfish":{"ideal":[65,75],"usable":[58,64,76,82]},"perch":{"ideal":[55,68],"usable":[48,54,69,74]},"crappie":{"ideal":[65,75],"usable":[58,64,76,82]},"catfish":{"ideal":[70,80],"usable":[62,69,81,86]}};
@@ -158,23 +158,8 @@ function skyFromClouds(cc,tod){if(tod==="dawn"||tod==="dusk")return"dawn_dusk";i
 function precipClass(mm){if(mm>=5)return"heavy";if(mm>0)return"light";return"none";}
 function seasonFromDate(d){const m=d.getMonth()+1;if(m>=4&&m<=5)return"spring";if(m>=6&&m<=8)return"summer";if(m>=9&&m<=11)return"fall";return"winter";}
 function formatSlot(h){return (h<12?(h===0?"12am":h+"am"):(h===12?"12pm":(h-12)+"pm"));}
-async function checkForecast(){const threshold=parseInt(document.getElementById('threshold').value||"65",10);const list=document.getElementById('out_list');list.innerHTML='<li>Fetching forecasts…</li>';const now=new Date();const tomorrow=new Date(now.getTime()+24*3600*1000);const seasonTomorrow=seasonFromDate(tomorrow);const topHits=[];for(const [name,lat,lon] of WATERS){try{const data=await fetchOM(lat,lon);const H=data.hourly;const len=H.time.length;const baroTrend=classifyBaroTrend(H.surface_pressure.slice(0,12));const tStr=tomorrow.toISOString().slice(0,10);const slots=[];for(let i=0;i<len;i++){if(H.time[i].startsWith(tStr+'T06:00'))slots.push(i);if(H.time[i].startsWith(tStr+'T12:00'))slots.push(i);if(H.time[i].startsWith(tStr+'T18:00'))slots.push(i);}if(slots.length===0)slots.push(30,36,42);const speciesList=["bass","walleye","trout","pike","perch"];for(const idx of slots){const tempF=(H.temperature_2m[idx]*9/5)+32;const wind=H.wind_speed_10m[idx];const clouds=H.cloud_cover[idx];const precip=H.precipitation[idx];const hourISO=H.time[idx];const hourLocal=new Date(hourISO);const hr=hourLocal.getHours();const tod=(hr<=7)?"dawn":(hr<=11)?"morning":(hr<=16)?"midday":(hr<=19)?"evening":"dusk";const sky=skyFromClouds(clouds,tod);const pclass=precipClass(precip);for(const sp of speciesList){const base=baseScore(sp,tempF,baroTrend,sky,wind,pclass,seasonTomorrow,tod,true).score;const adj=withWaterbody(sp,name,base,seasonTomorrow);if(adj>=threshold){topHits.push({name,sp,hour:hr,score:adj});}}}}catch(e){console.error(name,e);}}
-topHits.sort((a,b)=>b.score-a.score);list.innerHTML='';if(topHits.length===0){const li=document.createElement('li');li.textContent=`No scores ≥ ${threshold} in tomorrow’s key windows.`;list.appendChild(li);}else{topHits.slice(0,10).forEach(hit=>{const li=document.createElement('li');li.textContent=`${hit.name} — ${hit.sp} at ${formatSlot(hit.hour)} → ${hit.score}`;list.appendChild(li);});}}
-function addCalendarReminder(){const now=new Date();const dtstamp=now.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';const start=new Date();start.setHours(19,0,0,0);const DTSTART=start.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';const uid=Math.random().toString(36).slice(2)+"@bite";const ics=`BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Bite Likelihood//EN
-BEGIN:VEVENT
-UID:${uid}
-DTSTAMP:${dtstamp}
-DTSTART:${DTSTART}
-RRULE:FREQ=DAILY
-SUMMARY:Check Bite Likelihood (tap link)
-DESCRIPTION:Open the Bite app and run Forecast & Alerts → Check.
-URL:https://app.local/index.html
-END:VEVENT
-END:VCALENDAR`;const blob=new Blob([ics],{type:'text/calendar'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='bite_daily_reminder.ics';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
-document.getElementById('checkNow').addEventListener('click',checkForecast);
-document.getElementById('addCalendar').addEventListener('click',addCalendarReminder);
-</script>
+async function checkForecast(){const threshold=parseInt(document.getElementById('threshold').value||"65",10);const list=document.getElementById('out_list');list.innerHTML='<li>Fetching forecasts…</li>';const now=new Date();const tomorrow=new Date(now.getTime()+24*3600*1000);const seasonTomorrow=seasonFromDate(tomorrow);const topHits=[];for(const [name,lat,lon] of WATERS){try{const data=await fetchOM(lat,lon);const H=data.hourly;const len=H.time.length;const baroTrend=classifyBaroTrend(H.surface_pressure.slice(0,12));const tStr=tomorrow.toISOString().slice(0,10);const slots=[];
+</script> 
+
 </body>
 </html>
