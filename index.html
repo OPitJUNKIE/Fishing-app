@@ -74,6 +74,19 @@
         <input id="threshold" type="number" min="0" max="100" value="65">
       </div>
       <div>
+        <label>Species Filter (Scan)</label>
+        <select id="speciesFilter">
+          <option value="ALL" selected>All species</option>
+          <option value="Bass">Bass</option>
+          <option value="Walleye">Walleye</option>
+          <option value="Trout">Trout</option>
+          <option value="Northern Pike">Northern Pike</option>
+          <option value="Muskellunge">Muskellunge</option>
+          <option value="Chain Pickerel">Chain Pickerel</option>
+          <option value="Perch">Perch</option>
+        </select>
+      </div>
+      <div>
         <button class="btn" id="enableNotify">Enable Notifications</button>
         <button class="btn" id="scan">Scan Next 24 h</button>
       </div>
@@ -327,12 +340,14 @@ async function getWX(lat,lon){
   catch(e){ console.warn('Open‑Meteo failed → NWS fallback', e); return await fetchNWS(lat,lon); }
 }
 
-/* ---------- Forecast Scan (debug-friendly) ---------- */
+/* ---------- Forecast Scan (threshold + species filter) ---------- */
 const dbg = (label, obj)=>console.log(`[DBG] ${label}`, obj);
 
 document.getElementById('scan').addEventListener('click', async ()=>{
-  await ensureSW(); // make sure SW is registered before we fetch/calc
+  await ensureSW();
   const threshold=parseInt(document.getElementById('threshold').value||'65',10);
+  const speciesSel=document.getElementById('speciesFilter').value; // "ALL" or species name
+
   const out=document.getElementById('forecastResults'); out.innerHTML='Fetching…';
   const status=document.getElementById('status'); status.textContent='';
   const lunarLine=document.getElementById('lunarLine'); lunarLine.textContent='';
@@ -365,12 +380,14 @@ document.getElementById('scan').addEventListener('click', async ()=>{
         const lunar=lunarBonus(tod, wx.phaseLabel, ts, wx.moonrise, wx.moonset);
         const prevMap=PREV[name]||{};
         for(const sp of Object.keys(CALC)){
+          if(speciesSel!=='ALL' && sp!==speciesSel) continue; // species filter
+
           const base = CALC[sp](temp, sky, wind, baro, precip, tod);
           const prevCode = prevMap[sp] ?? 'F';
           const prevPts = PREV_SCALE[prevCode] ?? 0;
           const final = clamp(base + prevPts + lunar, 0, 100);
 
-          // Debug bundle
+          // Store everything; we'll filter by threshold for output/notifications
           allEvents.push({
             score: final, water: name, species: sp, hour:h,
             breakdown:{
@@ -387,19 +404,25 @@ document.getElementById('scan').addEventListener('click', async ()=>{
     }
   }
 
-  // Sort & display
+  // Sort by score desc
   allEvents.sort((a,b)=>b.score-a.score);
-  const hits = allEvents.filter(e=>e.score>=threshold);
-  status.textContent = hits.length ? `Found ${hits.length} hits ≥ ${threshold}` : `No hits ≥ ${threshold}`;
 
-  // Results list (top 20)
-  out.innerHTML = hits.slice(0,20).map(h=>{
+  // Threshold filter for outputs (strictly greater than)
+  const filtered = allEvents.filter(e=>e.score > threshold);
+
+  status.textContent = filtered.length
+    ? `Showing ${filtered.length} events > ${threshold}${speciesSel!=='ALL' ? ' ('+speciesSel+')':''}`
+    : `No events > ${threshold}${speciesSel!=='ALL' ? ' ('+speciesSel+')':''}`;
+
+  // Results list (top 20 filtered)
+  const resHTML = filtered.slice(0,20).map(h=>{
     const when = (h.hour%12)||12; const ampm = h.hour<12?'am':'pm';
     return `<div class="alert">${h.species} — <b>${h.score}</b> · ${h.water} at ${when}${ampm}</div>`;
   }).join('') || "<div>No qualifying times in the next 24h.</div>";
+  document.getElementById('forecastResults').innerHTML = resHTML;
 
-  // Debug panel (top 10 with full breakdown, color-coded)
-  const topDbg = allEvents.slice(0,10).map(ev=>{
+  // Debug panel (top 10 filtered with full breakdown, color-coded)
+  const topDbg = filtered.slice(0,10).map(ev=>{
     const cls = ev.score>=65?'score-good':(ev.score>=40?'score-fair':'score-poor');
     const when = (ev.hour==='–'?'–':`${(ev.hour%12)||12}${ev.hour<12?'am':'pm'}`);
     const b=ev.breakdown;
@@ -420,16 +443,15 @@ document.getElementById('scan').addEventListener('click', async ()=>{
   }).join('');
   document.getElementById('debugContent').innerHTML = topDbg || '<div class="dbg-line">No debug items.</div>';
 
-  // Smarter notifications: top 3 distinct events only
-  const top3 = hits.slice(0,3);
+  // Notifications: top 3 filtered only
+  const top3 = filtered.slice(0,3);
   top3.forEach(h=>{
     const when = (h.hour%12)||12; const ampm = h.hour<12?'AM':'PM';
     notify(`🎣 ${h.species} — ${h.score}`, `${h.water} around ${when} ${ampm}`);
   });
 
   // Console debug
-  dbg('TOP_10', allEvents.slice(0,10));
-  dbg('HITS', hits.slice(0,10));
+  dbg('FILTERED_TOP_10', filtered.slice(0,10));
 });
 
 /* ---------- Manual calculator ---------- */
@@ -446,7 +468,7 @@ document.getElementById('m_go').addEventListener('click', ()=>{
   // Lunar controls
   const phaseLabel=document.getElementById('m_phase').value; // new|quarter|full|other
   const near=document.getElementById('m_near').value==='yes'?6:0;
-  const phase = phaseBoost(phaseLabel);
+  const phase = (function(label){if(label==='new')return{day:+4,night:+2};if(label==='full')return{day:+2,night:+4};if(label==='quarter')return{day:+2,night:+2};return{day:+1,night:+1};})(phaseLabel);
   let lunar = phase.day + phase.night + near;
   if(tod==='Night') lunar += 2; // slight bias at night
 
