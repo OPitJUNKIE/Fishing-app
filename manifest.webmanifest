@@ -1,1 +1,16 @@
-{"name": "Upstate NY Bite Likelihood", "short_name": "Bite Likelihood", "start_url": "./index.html", "display": "standalone", "background_color": "#09131e", "theme_color": "#09131e", "icons": [{"src": "bite_app_icon_512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}]}
+{
+  "name": "Upstate NY Fishing",
+  "short_name": "NY Fishing",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a3d1e",
+  "theme_color": "#0a3d1e",
+  "icons": [
+    {
+      "src": "bite_app_icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
