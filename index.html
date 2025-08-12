@@ -1,165 +1,257 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Upstate NY Bite Likelihood</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upstate NY Fishing Bite Calculator</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#09131e">
+<link rel="icon" href="bite_app_icon_512.png">
 <style>
-  :root{--bg:#09131e;--card:#0f1c2b;--ink:#eaf1fb;--muted:#b5c1d6;--accent:#7ad3ff;--line:#213145}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:980px;margin:0 auto;padding:16px 14px 36px}
-  header{display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 12px}
-  header img{width:36px;height:36px;border-radius:8px}
-  h1{font-size:1.15rem;margin:0}
-  .tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
-  .tab{padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:#0b1725;color:var(--ink);cursor:pointer}
-  .tab.active{background:var(--accent);color:#082334;font-weight:700}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 12px 12px;box-shadow:0 6px 24px rgba(0,0,0,.35)}
-  .grid{display:grid;grid-template-columns:1fr;gap:12px}
-  @media(min-width:760px){.grid{grid-template-columns:1fr 1fr}}
-  label{font-size:.86rem;color:var(--muted);margin-bottom:4px;display:block}
-  select,input[type="number"]{width:100%;padding:12px;border-radius:12px;border:1px solid #2a3c54;background:#0b1725;color:var(--ink);font-size:1rem;outline:none}
-  select:focus,input[type="number"]:focus{border-color:var(--accent)}
-  .row{display:flex;gap:10px;align-items:center}
-  input[type="checkbox"]{width:22px;height:22px}
-  .btn{width:100%;margin-top:12px;padding:14px;border-radius:12px;background:var(--accent);color:#082334;border:0;font-weight:700;font-size:1.03rem}
-  .result{margin-top:14px;padding:16px;border-radius:14px;background:#0c1826;border:1px solid var(--line)}
-  .score{font-size:2.3rem;font-weight:800;margin:0}
-  .verdict{font-size:1.05rem;margin:4px 0 0;color:var(--muted)}
-  .pill{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:700;margin-left:8px;border:1px solid rgba(255,255,255,.15)}
-  .bad{background:rgba(239,83,80,.15);color:#ffb3ae;border-color:rgba(239,83,80,.3)}
-  .fair{background:rgba(255,152,0,.14);color:#ffd7a6;border-color:rgba(255,152,0,.32)}
-  .good{background:rgba(77,208,225,.14);color:#b8f2f7;border-color:rgba(77,208,225,.32)}
-  .great{background:rgba(76,175,80,.14);color:#c8f2c9;border-color:rgba(76,175,80,.32)}
-  .peak{background:rgba(156,39,176,.16);color:#edc6f4;border-color:rgba(156,39,176,.32)}
-  details{margin-top:10px}
-  summary{cursor:pointer;color:var(--muted)}
-  .tiny{font-size:.8rem;color:var(--muted)}
-  .footer{margin-top:18px;text-align:center;color:var(--muted);font-size:.85rem}
-  .hint{margin:8px 0 0;font-size:.8rem;color:var(--muted)}
-  .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .pill2{padding:6px 10px;border-radius:999px;background:#0b1725;border:1px solid var(--line)}
-  .list{margin:8px 0 0;padding:0}
-  .list li{list-style:none;margin:6px 0;padding:8px;border:1px solid var(--line);border-radius:10px;background:#0b1725}
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f0f5f0; }
+  header { background: #1f5d1f; color: white; padding: 10px; text-align: center; }
+  main { padding: 15px; }
+  h2 { margin-top: 20px; }
+  select, button, input { font-size: 16px; padding: 5px; margin-top: 5px; }
+  .result { background: white; padding: 10px; border-radius: 5px; margin-top: 10px; }
+  nav { display: flex; }
+  nav button { flex: 1; padding: 10px; font-size: 16px; }
+  .hidden { display: none; }
+  .alert { background: #d4f5d4; border: 1px solid #1f5d1f; padding: 10px; margin-top: 5px; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <img src="bite_app_icon_512.png" alt="icon"><h1>Upstate NY Bite Likelihood</h1>
-  </header>
-  <div class="tabs">
-    <button class="tab active" data-tab="calc1">Weather Calculator</button>
-    <button class="tab" data-tab="calc2">Waterbody‑Adjusted</button>
-    <button class="tab" data-tab="outlook">Forecast & Alerts</button>
-  </div>
-  <div id="calc1" class="card">
-    <div class="grid">
-      <div><label for="c1_species">Species</label><select id="c1_species">
-        <option value="trout">Trout</option><option value="salmon">Salmon</option>
-        <option value="bass" selected>Bass (LM/SM)</option><option value="walleye">Walleye</option>
-        <option value="pike">Northern Pike</option><option value="musky">Musky</option>
-        <option value="panfish">Panfish</option></select></div>
-      <div><label for="c1_temp">Water Temp (°F)</label><input id="c1_temp" type="number" inputmode="decimal" placeholder="e.g., 66" min="32" max="90"></div>
-      <div><label for="c1_baro">Barometric Trend</label><select id="c1_baro">
-        <option value="rapid_falling">Rapid falling (pre-front)</option><option value="falling">Gentle falling</option>
-        <option value="stable" selected>Stable</option><option value="rising">Gentle rising</option>
-        <option value="rapid_rising">Rapid rising (post-front)</option></select></div>
-      <div><label for="c1_sky">Light / Sky</label><select id="c1_sky">
-        <option value="overcast">Overcast / thin clouds</option><option value="mixed" selected>Mixed clouds</option>
-        <option value="dawn_dusk">Dawn / Dusk</option><option value="night">Night</option>
-        <option value="sunny_midday">Bright & sunny (midday)</option></select></div>
-      <div><label for="c1_wind">Wind (mph)</label><input id="c1_wind" type="number" inputmode="numeric" placeholder="e.g., 10" min="0" max="60"></div>
-      <div><label for="c1_precip">Precip / Runoff</label><select id="c1_precip">
-        <option value="none" selected>None</option><option value="light">Light rain / recent drizzle</option>
-        <option value="heavy">Heavy rain / muddy surge</option></select></div>
-      <div><label for="c1_season">Season</label><select id="c1_season">
-        <option value="spring">Spring (Apr–May)</option><option value="summer" selected>Summer (Jun–Aug)</option>
-        <option value="fall">Fall (Sep–Nov)</option><option value="winter">Winter (Dec–Mar)</option></select></div>
-      <div><label for="c1_tod">Time of Day</label><select id="c1_tod">
-        <option value="dawn">Dawn</option><option value="morning" selected>Morning</option><option value="midday">Midday</option>
-        <option value="evening">Evening</option><option value="dusk">Dusk</option><option value="night">Night</option></select></div>
-    </div>
-    <div class="row" style="margin-top:6px"><input type="checkbox" id="c1_windward"><label for="c1_windward">Fishing a windward bank / point</label></div>
-    <button class="btn" id="c1_calc">Calculate</button>
-    <div class="result" id="c1_result" hidden><p class="score" id="c1_score">—</p><p class="verdict" id="c1_verdict">Tap “Calculate”</p><details><summary>Show factor breakdown</summary><div id="c1_breakdown" class="tiny"></div></details></div>
-  </div>
-
-  <div id="calc2" class="card" style="display:none">
-    <div class="grid">
-      <div><label for="c2_water">Waterbody</label><select id="c2_water"></select><div class="hint">Rochester‑area waters.</div></div>
-      <div><label for="c2_species">Target Species</label><select id="c2_species">
-        <option value="trout">Trout/Salmon (salmonids)</option><option value="bass" selected>Bass (LM/SM)</option>
-        <option value="walleye">Walleye</option><option value="pike">Northern Pike / Pickerel</option>
-        <option value="musky">Muskellunge</option><option value="perch">Yellow Perch</option>
-        <option value="crappie">Crappie</option><option value="panfish">Sunfish</option><option value="catfish">Catfish/Bullhead</option></select></div>
-      <div><label for="c2_temp">Water Temp (°F)</label><input id="c2_temp" type="number" inputmode="decimal" placeholder="e.g., 66" min="32" max="90"></div>
-      <div><label for="c2_baro">Barometric Trend</label><select id="c2_baro">
-        <option value="rapid_falling">Rapid falling (pre-front)</option><option value="falling">Gentle falling</option>
-        <option value="stable" selected>Stable</option><option value="rising">Gentle rising</option>
-        <option value="rapid_rising">Rapid rising (post-front)</option></select></div>
-      <div><label for="c2_sky">Light / Sky</label><select id="c2_sky">
-        <option value="overcast">Overcast / thin clouds</option><option value="mixed" selected>Mixed clouds</option>
-        <option value="dawn_dusk">Dawn / Dusk</option><option value="night">Night</option>
-        <option value="sunny_midday">Bright & sunny (midday)</option></select></div>
-      <div><label for="c2_wind">Wind (mph)</label><input id="c2_wind" type="number" inputmode="numeric" placeholder="e.g., 10" min="0" max="60"></div>
-      <div><label for="c2_precip">Precip / Runoff</label><select id="c2_precip">
-        <option value="none" selected>None</option><option value="light">Light rain / recent drizzle</option>
-        <option value="heavy">Heavy rain / muddy surge</option></select></div>
-      <div><label for="c2_season">Season</label><select id="c2_season">
-        <option value="spring">Spring (Apr–May)</option><option value="summer" selected>Summer (Jun–Aug)</option>
-        <option value="fall">Fall (Sep–Nov)</option><option value="winter">Winter (Dec–Mar)</option></select></div>
-      <div><label for="c2_tod">Time of Day</label><select id="c2_tod">
-        <option value="dawn">Dawn</option><option value="morning" selected>Morning</option><option value="midday">Midday</option>
-        <option value="evening">Evening</option><option value="dusk">Dusk</option><option value="night">Night</option></select></div>
-    </div>
-    <div class="row" style="margin-top:6px"><input type="checkbox" id="c2_windward"><label for="c2_windward">Fishing a windward bank / point</label></div>
-    <button class="btn" id="c2_calc">Calculate</button>
-    <div class="result" id="c2_result" hidden><p class="score" id="c2_score">—</p><p class="verdict" id="c2_verdict">Tap “Calculate”</p><details><summary>Show factor breakdown</summary><div id="c2_breakdown" class="tiny"></div></details></div>
-  </div>
-
-  <div id="outlook" class="card" style="display:none">
-    <div class="flex"><div class="pill2">Forecast provider: Open‑Meteo</div><div class="pill2">Location: Rochester area</div></div>
-    <p class="tiny">Note: iOS PWAs can’t push background notifications without a server. Use this tab to check on demand, or add a Calendar reminder.</p>
-    <div class="row"><label for="threshold" style="flex:1 1 auto">Alert threshold (score ≥)</label><input id="threshold" type="number" min="0" max="100" step="1" value="65" style="max-width:120px"><button class="btn" id="checkNow" style="flex:1 1 100%">Check Tomorrow & Next 24h</button></div>
-    <ul class="list" id="out_list"></ul>
-    <div class="row" style="margin-top:8px"><button class="btn" id="addCalendar">Add 7pm Daily Reminder</button></div>
-  </div>
-
-  <div class="footer">Install: Share → Add to Home Screen. Offline-ready via service worker. Weather by Open‑Meteo.</div>
-</div>
-
+<header>
+  <h1>Upstate NY Fishing Bite Calculator</h1>
+</header>
+<nav>
+  <button onclick="showTab('forecast')">Forecast & Alerts</button>
+  <button onclick="showTab('manual')">Manual Calculator</button>
+</nav>
+<main>
+  <section id="forecast">
+    <h2>Forecast & Bite Alerts</h2>
+    <label>Bite Alert Threshold: <input type="number" id="threshold" value="65"></label><br>
+    <button onclick="enableNotifications()">Enable Notifications</button>
+    <button onclick="scanForecast()">Scan Next 24h</button>
+    <div id="forecastResults"></div>
+  </section>
+  <section id="manual" class="hidden">
+    <h2>Manual Bite Score Calculator</h2>
+    <label>Species:
+      <select id="species">
+        <option>Bass</option>
+        <option>Walleye</option>
+        <option>Trout</option>
+        <option>Northern Pike</option>
+        <option>Muskellunge</option>
+        <option>Chain Pickerel</option>
+        <option>Perch</option>
+      </select>
+    </label><br>
+    <label>Waterbody:
+      <select id="waterbody">
+        <option>Lake Ontario – Rochester shore</option>
+        <option>Irondequoit Bay</option>
+        <option>Genesee River – lower</option>
+        <option>Conesus Lake</option>
+        <option>Honeoye Lake</option>
+        <option>Hemlock Lake</option>
+        <option>Canadice Lake</option>
+      </select>
+    </label><br>
+    <label>Temperature (°F): <input type="number" id="temp"></label><br>
+    <label>Wind Speed (mph): <input type="number" id="wind"></label><br>
+    <label>Sky Cover (0–100%): <input type="number" id="sky"></label><br>
+    <label>Barometric Trend:
+      <select id="baro">
+        <option>Falling</option>
+        <option>Stable</option>
+        <option>Rising</option>
+      </select>
+    </label><br>
+    <label>Precipitation:
+      <select id="precip">
+        <option>None</option>
+        <option>Light</option>
+        <option>Heavy</option>
+      </select>
+    </label><br>
+    <label>Time of Day:
+      <select id="tod">
+        <option>Dawn</option>
+        <option>Dusk</option>
+        <option>Midday</option>
+        <option>Night</option>
+      </select>
+    </label><br>
+    <button onclick="manualCalc()">Calculate</button>
+    <div id="manualResult" class="result"></div>
+  </section>
+</main>
 <script>
- if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(console.error); });
-}
-const bands = {"trout":{"ideal":[50,65],"usable":[44,49,66,70]},"salmon":{"ideal":[50,65],"usable":[44,49,66,70]},"bass":{"ideal":[65,75],"usable":[58,64,76,82]},"walleye":{"ideal":[55,68],"usable":[48,54,69,74]},"pike":{"ideal":[60,70],"usable":[52,59,71,76]},"musky":{"ideal":[60,70],"usable":[52,59,71,76]},"panfish":{"ideal":[65,75],"usable":[58,64,76,82]},"perch":{"ideal":[55,68],"usable":[48,54,69,74]},"crappie":{"ideal":[65,75],"usable":[58,64,76,82]},"catfish":{"ideal":[70,80],"usable":[62,69,81,86]}};
-function tempPoints(species, t){const b=bands[species]||bands["bass"];const [lo,hi]=b.ideal;const [ulo1,uhi1,ulo2,uhi2]=b.usable;if(t>=lo&&t<=hi)return{pts:40,txt:`Temp in ideal (${lo}–${hi}°F): +40`};if(t>=ulo1&&t<lo){const p=40*(t-ulo1)/(lo-ulo1);return{pts:p,txt:`Temp in cool shoulder (${ulo1}–${lo}°F): +${p.toFixed(1)}`};}if(t>hi&&t<=uhi2){const p=40*(uhi2-t)/(uhi2-hi);return{pts:p,txt:`Temp in warm shoulder (${hi}–${uhi2}°F): +${p.toFixed(1)}`};}return{pts:0,txt:`Temp outside usable: +0`};}
-function verdictFrom(score){if(score<25)return{tag:"Poor",cls:"bad"};if(score<50)return{tag:"Fair",cls:"fair"};if(score<70)return{tag:"Good",cls:"good"};if(score<85)return{tag:"Great",cls:"great"};return{tag:"Peak",cls:"peak"};}
-function baseScore(species, waterTempF, baroTrend, sky, windMph, precip, season, tod, windward){let pts=0;const lines=[];if(!isNaN(waterTempF)){const t=tempPoints(species,waterTempF);pts+=t.pts;lines.push(t.txt);}else{lines.push("Temp not set: +0");}const baroMap={"rapid_falling":15,"falling":10,"stable":6,"rising":2,"rapid_rising":-5};const bp=(baroMap[baroTrend]||0);pts+=bp;lines.push(`Barometric trend: ${baroTrend.replace("_"," ")}: ${(bp>=0?"+":"")}${bp}`);let skyPts=0;if(sky==="overcast")skyPts=10;else if(sky==="mixed"||sky==="dawn_dusk")skyPts=8;else if(sky==="night")skyPts=(species==="walleye"?8:6);else if(sky==="sunny_midday")skyPts=-5;pts+=skyPts;lines.push(`Light/Sky: ${(skyPts>=0?"+":"")}${skyPts}`);let wPts=0;if(!isNaN(windMph)){if(windMph>=6&&windMph<=15)wPts=10;else if(windMph>=1&&windMph<=5)wPts=5;else if(windMph>22)wPts=-5;}pts+=wPts;lines.push(`Wind ${isNaN(windMph)?"?":windMph} mph: ${(wPts>=0?"+":"")}${wPts}`);if(windward&&!isNaN(windMph)&&windMph>=6&&windMph<=18){pts+=2;lines.push("Windward bank bonus: +2");}let pPts=0;if(precip==="light")pPts=5;else if(precip==="heavy")pPts=-8;if(precip==="heavy"&&species==="pike")pPts=-4;pts+=pPts;lines.push(`Precip/runoff: ${(pPts>=0?"+":"")}${pPts}`);let sPts=0;if(season==="spring"){sPts=(["trout","salmon","walleye","pike","musky"].includes(species))?8:4;}else if(season==="summer"){if(["bass","panfish","crappie","perch"].includes(species))sPts=8;else if(species==="walleye")sPts=6;else if(["trout","salmon"].includes(species))sPts=-6;}else if(season==="fall"){if(["pike","musky","walleye","trout","salmon"].includes(species))sPts=12;else sPts=6;}else if(season==="winter"){if(species==="walleye")sPts=4;else if(["trout","salmon"].includes(species))sPts=2;else sPts=-4;}pts+=sPts;lines.push(`Season alignment: ${(sPts>=0?"+":"")}${sPts}`);const todMap={"dawn":8,"dusk":8,"morning":4,"evening":4,"midday":-4,"night":6};let tPts=todMap[tod]??0;if(tod==="night"&&species==="walleye")tPts=8;pts+=tPts;lines.push(`Time of day: ${(tPts>=0?"+":"")}${tPts}`);const score=Math.max(0,Math.min(100,Math.round(pts)));return{score,lines,verdict:verdictFrom(score)};}
-const WATERS=[["Lake Ontario (Rochester Shore)",43.256,-77.596],["Genesee River (Lower)",43.235,-77.609],["Irondequoit Bay",43.225,-77.543],["Braddock Bay",43.302,-77.691],["Long Pond (Greece)",43.276,-77.681],["Cranberry Pond",43.289,-77.686],["Buck Pond",43.294,-77.685],["Round Pond (Greece)",43.303,-77.673],["Durand Lake",43.238,-77.557],["Hundred Acre Pond (Mendon)",43.005,-77.559],["Deep Pond (Mendon)",43.008,-77.566],["Round Pond (Mendon)",43.012,-77.563],["Quaker Pond (Mendon)",43.021,-77.564],["Black Creek (Monroe)",43.103,-77.755],["Oatka Creek",42.997,-77.858],["Salmon Creek (Monroe)",43.324,-77.709],["Conesus Lake",42.746,-77.704],["Honeoye Lake",42.779,-77.512],["Hemlock Lake",42.754,-77.590],["Canadice Lake",42.704,-77.603],["Sodus Bay",43.271,-76.991],["Canandaigua Lake",42.800,-77.286]];
-const A=12,C2=6,P2=2,R=-4,N=-8;
-const PREV={"Lake Ontario (Rochester Shore)":{trout:C2,bass:C2,walleye:P2,pike:P2,musky:R,perch:C2,crappie:P2,panfish:P2,catfish:P2},"Genesee River (Lower)":{trout:"seasonal",bass:C2,walleye:P2,pike:P2,musky:N,perch:C2,crappie:P2,panfish:C2,catfish:C2},"Irondequoit Bay":{trout:R,bass:A,walleye:C2,pike:C2,musky:N,perch:A,crappie:C2,panfish:A,catfish:P2},"Braddock Bay":{trout:R,bass:C2,walleye:P2,pike:C2,musky:N,perch:C2,crappie:P2,panfish:C2,catfish:P2},"Long Pond (Greece)":{trout:N,bass:C2,walleye:P2,pike:C2,musky:N,perch:C2,crappie:P2,panfish:C2,catfish:P2},"Cranberry Pond":{trout:N,bass:C2,walleye:P2,pike:C2,musky:N,perch:C2,crappie:P2,panfish:C2,catfish:P2},"Buck Pond":{trout:N,bass:C2,walleye:P2,pike:C2,musky:N,perch:C2,crappie:P2,panfish:C2,catfish:P2},"Round Pond (Greece)":{trout:N,bass:C2,walleye:N,pike:C2,musky:N,perch:C2,crappie:P2,panfish:C2,catfish:P2},"Durand Lake":{trout:N,bass:C2,walleye:N,pike:R,musky:N,perch:P2,crappie:C2,panfish:C2,catfish:P2},"Hundred Acre Pond (Mendon)":{trout:N,bass:P2,walleye:N,pike:R,musky:N,perch:P2,crappie:P2,panfish:C2,catfish:P2},"Deep Pond (Mendon)":{trout:N,bass:P2,walleye:N,pike:R,musky:N,perch:P2,crappie:P2,panfish:C2,catfish:P2},"Round Pond (Mendon)":{trout:N,bass:P2,walleye:N,pike:R,musky:N,perch:P2,crappie:P2,panfish:C2,catfish:P2},"Quaker Pond (Mendon)":{trout:N,bass:P2,walleye:N,pike:R,musky:N,perch:P2,crappie:P2,panfish:C2,catfish:P2},"Black Creek (Monroe)":{trout:R,bass:C2,walleye:N,pike:C2,musky:N,perch:P2,crappie:P2,panfish:C2,catfish:C2},"Oatka Creek":{trout:A,bass:P2,walleye:N,pike:P2,musky:N,perch:P2,crappie:P2,panfish:P2,catfish:P2},"Salmon Creek (Monroe)":{trout:"seasonal",bass:P2,walleye:N,pike:P2,musky:N,perch:P2,crappie:P2,panfish:P2,catfish:P2},"Conesus Lake":{trout:R,bass:A,walleye:C2,pike:C2,musky:N,perch:C2,crappie:P2,panfish:A,catfish:C2},"Honeoye Lake":{trout:N,bass:A,walleye:C2,pike:C2,musky:N,perch:C2,crappie:C2,panfish:A,catfish:P2},"Hemlock Lake":{trout:C2,bass:C2,walleye:N,pike:C2,musky:N,perch:P2,crappie:P2,panfish:C2,catfish:P2},"Canadice Lake":{trout:C2,bass:C2,walleye:N,pike:C2,musky:N,perch:P2,crappie:P2,panfish:C2,catfish:P2},"Sodus Bay":{trout:2,bass:12,walleye:6,pike:6,musky:-4,perch:12,crappie:6,panfish:12,catfish:2},"Canandaigua Lake":{trout:12,bass:6,walleye:2,pike:-4,musky:-8,perch:6,crappie:2,panfish:2,catfish:2}};
-function seasonalBoost(water,species,season){if(species!=="trout")return 0;if(water==="Genesee River (Lower)"||water==="Salmon Creek (Monroe)"){if(["fall","winter","spring"].includes(season))return 8;}return 0;}
-function prevalencePoints(water,species,season){const map=PREV[water]||{};let v=map[species];if(v==="seasonal")v=4;return (v||0)+seasonalBoost(water,species,season);}
-function withWaterbody(species,water,base,season){return Math.max(0,Math.min(100,Math.round(base+prevalencePoints(water,species,season))));}
-function showScore(prefix,score,lines){const v=verdictFrom(score);document.getElementById(prefix+"_result").hidden=false;document.getElementById(prefix+"_score").textContent=score;document.getElementById(prefix+"_verdict").innerHTML=`Verdict: <span class="pill ${v.cls}">${v.tag}</span>`;document.getElementById(prefix+"_breakdown").innerHTML=lines.map(x=>'• '+x).join('<br>');const el=document.getElementById(prefix+"_score");el.style.transition="color .3s ease";el.style.color=(v.cls==="bad")?"#ef9a9a":(v.cls==="fair")?"#ffd54f":(v.cls==="good")?"#80deea":(v.cls==="great")?"#a5d6a7":"#e1bee7";}
-document.querySelectorAll('.tab').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const t=btn.dataset.tab;document.getElementById('calc1').style.display=(t==='calc1')?'block':'none';document.getElementById('calc2').style.display=(t==='calc2')?'block':'none';document.getElementById('outlook').style.display=(t==='outlook')?'block':'none';});});
-const waterSel=document.getElementById('c2_water');[
-  "Lake Ontario (Rochester Shore)","Genesee River (Lower)","Irondequoit Bay","Braddock Bay","Long Pond (Greece)","Cranberry Pond","Buck Pond","Round Pond (Greece)","Durand Lake","Hundred Acre Pond (Mendon)","Deep Pond (Mendon)","Round Pond (Mendon)","Quaker Pond (Mendon)","Black Creek (Monroe)","Oatka Creek","Salmon Creek (Monroe)","Conesus Lake","Honeoye Lake","Hemlock Lake","Canadice Lake","Sodus Bay","Canandaigua Lake"
-].forEach(w=>{const o=document.createElement('option');o.textContent=w;waterSel.appendChild(o);});
-document.getElementById('c1_calc').addEventListener('click',()=>{const sp=document.getElementById('c1_species').value;const temp=parseFloat(document.getElementById('c1_temp').value);const baro=document.getElementById('c1_baro').value;const sky=document.getElementById('c1_sky').value;const wind=parseFloat(document.getElementById('c1_wind').value);const precip=document.getElementById('c1_precip').value;const season=document.getElementById('c1_season').value;const tod=document.getElementById('c1_tod').value;const windward=document.getElementById('c1_windward').checked;const res=baseScore(sp,temp,baro,sky,wind,precip,season,tod,windward);showScore('c1',res.score,res.lines);});
-document.getElementById('c2_calc').addEventListener('click',()=>{const water=document.getElementById('c2_water').value;const sp=document.getElementById('c2_species').value;const temp=parseFloat(document.getElementById('c2_temp').value);const baro=document.getElementById('c2_baro').value;const sky=document.getElementById('c2_sky').value;const wind=parseFloat(document.getElementById('c2_wind').value);const precip=document.getElementById('c2_precip').value;const season=document.getElementById('c2_season').value;const tod=document.getElementById('c2_tod').value;const windward=document.getElementById('c2_windward').checked;const res=baseScore(sp,temp,baro,sky,wind,precip,season,tod,windward);const adj=withWaterbody(sp,water,res.score,season);res.lines.push(`Waterbody prevalence (${water}): ${(adj-res.score>=0?'+':'')}${(adj-res.score)}`);showScore('c2',adj,res.lines);});
-async function fetchOM(lat,lon){const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,cloud_cover,wind_speed_10m,surface_pressure&timezone=${encodeURIComponent(tz)}`;const r=await fetch(url);if(!r.ok)throw new Error('Forecast fetch failed');return r.json();}
-function classifyBaroTrend(pressures){const n=pressures.length;if(n<12)return"stable";const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;const prev=avg(pressures.slice(0,6));const next=avg(pressures.slice(6,12));const diff=next-prev;if(diff<=-3)return"rapid_falling";if(diff<-1.5)return"falling";if(diff>3)return"rapid_rising";if(diff>1.5)return"rising";return"stable";}
-function skyFromClouds(cc,tod){if(tod==="dawn"||tod==="dusk")return"dawn_dusk";if(cc>=70)return"overcast";if(cc<=30&&tod==="midday")return"sunny_midday";return"mixed";}
-function precipClass(mm){if(mm>=5)return"heavy";if(mm>0)return"light";return"none";}
-function seasonFromDate(d){const m=d.getMonth()+1;if(m>=4&&m<=5)return"spring";if(m>=6&&m<=8)return"summer";if(m>=9&&m<=11)return"fall";return"winter";}
-function formatSlot(h){return (h<12?(h===0?"12am":h+"am"):(h===12?"12pm":(h-12)+"pm"));}
-async function checkForecast(){const threshold=parseInt(document.getElementById('threshold').value||"65",10);const list=document.getElementById('out_list');list.innerHTML='<li>Fetching forecasts…</li>';const now=new Date();const tomorrow=new Date(now.getTime()+24*3600*1000);const seasonTomorrow=seasonFromDate(tomorrow);const topHits=[];for(const [name,lat,lon] of WATERS){try{const data=await fetchOM(lat,lon);const H=data.hourly;const len=H.time.length;const baroTrend=classifyBaroTrend(H.surface_pressure.slice(0,12));const tStr=tomorrow.toISOString().slice(0,10);const slots=[];
-</script> 
+// ----------------- Prevalence Table -----------------
+const prevalence = {
+  "Lake Ontario – Rochester shore": { Bass:6, Walleye:6, Trout:2, "Northern Pike":2, Muskellunge:-4, "Chain Pickerel":-4, Perch:10 },
+  "Irondequoit Bay": { Bass:6, Walleye:4, Trout:-4, "Northern Pike":2, Muskellunge:-4, "Chain Pickerel":2, Perch:6 },
+  "Genesee River – lower": { Bass:6, Walleye:4, Trout:2, "Northern Pike":2, Muskellunge:-4, "Chain Pickerel":-4, Perch:2 },
+  "Conesus Lake": { Bass:4, Walleye:6, Trout:-4, "Northern Pike":6, Muskellunge:-4, "Chain Pickerel":-4, Perch:2 },
+  "Honeoye Lake": { Bass:6, Walleye:6, Trout:-4, "Northern Pike":-4, Muskellunge:-4, "Chain Pickerel":6, Perch:6 },
+  "Hemlock Lake": { Bass:4, Walleye:-4, Trout:6, "Northern Pike":-4, Muskellunge:-4, "Chain Pickerel":2, Perch:2 },
+  "Canadice Lake": { Bass:4, Walleye:-4, Trout:6, "Northern Pike":-4, Muskellunge:-4, "Chain Pickerel":2, Perch:2 }
+};
 
+// ----------------- Species Scoring -----------------
+function scoreWeather(species, temp, wind, sky, baro, precip, tod) {
+  let score = 0;
+  function range(val, min, max, bestMin, bestMax) {
+    if (val >= bestMin && val <= bestMax) return 40;
+    let diff = Math.min(Math.abs(val - bestMin), Math.abs(val - bestMax));
+    return Math.max(0, 40 - diff*5);
+  }
+
+  switch(species) {
+    case "Bass":
+      score += range(temp, 58, 82, 65, 75);
+      if (sky > 50) score += 8; else if (tod==="Midday") score -= 5;
+      if (wind>=4 && wind<=14) score += 10; else if (wind<4) score += 4; else if (wind>22) score -= 4;
+      score += (baro==="Falling"?10:baro==="Stable"?6:2);
+      score += (precip==="Light"?4:precip==="Heavy"?-6:0);
+      score += (tod==="Dawn"||tod==="Dusk"?8:tod==="Midday"?-4:0);
+      break;
+    case "Walleye":
+      score += range(temp, 50, 70, 55, 68);
+      if (tod==="Dawn"||tod==="Dusk"||sky>50) score += 12;
+      if (wind>=6 && wind<=18) score += 10;
+      score += (baro==="Falling"?12:baro==="Stable"?4:0);
+      score += (precip==="Light"?4:precip==="Heavy"?-6:0);
+      if (tod==="Night") score += 8; if (tod==="Dawn"||tod==="Dusk") score += 10;
+      break;
+    case "Trout":
+      score += range(temp, 45, 68, 50, 65);
+      if (sky>50) score += 10; else if (sky<30) score -= 5;
+      if (wind>=3 && wind<=10) score += 6; else if (wind>15) score -= 6;
+      score += (baro==="Stable"?8:baro==="Falling"?6:-2);
+      score += (precip==="Light"?2:precip==="Heavy"?-10:0);
+      if (tod==="Dawn"||tod==="Dusk") score += 6; else if (tod==="Midday") score -= 4;
+      break;
+    case "Northern Pike":
+      score += range(temp, 50, 75, 60, 70);
+      if (sky>50) score += 10;
+      if (wind>=6 && wind<=15) score += 8; else if (wind>20) score -= 4;
+      score += (baro==="Falling"?12:baro==="Stable"?4:-2);
+      score += (precip==="Light"?4:precip==="Heavy"?-6:0);
+      if (tod==="Dawn"||tod==="Dusk") score += 8;
+      break;
+    case "Muskellunge":
+      score += range(temp, 55, 80, 63, 75);
+      if (sky>50) score += 10; else score -= 4;
+      if (wind>=8 && wind<=16) score += 10;
+      score += (baro==="Falling"?15:-5);
+      score += (precip==="Light"?6:precip==="Heavy"?-8:0);
+      if (tod==="Dusk"||tod==="Night") score += 10; else if (tod==="Midday") score -= 6;
+      break;
+    case "Chain Pickerel":
+      score += range(temp, 50, 80, 62, 76);
+      if (sky>50) score += 8;
+      if (wind>=3 && wind<=12) score += 8; else if (wind<3) score += 3;
+      score += (baro==="Falling"?10:baro==="Stable"?6:0);
+      score += (precip==="Light"?4:precip==="Heavy"?-6:0);
+      if (tod==="Dawn"||tod==="Dusk") score += 8;
+      break;
+    case "Perch":
+      score += range(temp, 45, 75, 55, 68);
+      if (sky>30 && sky<70) score += 6;
+      if (wind>=2 && wind<=10) score += 8; else if (wind>15) score -= 4;
+      score += (baro==="Falling"?6:baro==="Stable"?6:-2);
+      score += (precip==="Heavy"?-6:0);
+      if (tod==="Dawn"||tod==="Dusk") score += 4;
+      break;
+  }
+  return Math.max(0, Math.min(100, score));
+}
+
+// ----------------- Forecast Scan -----------------
+async function scanForecast(){
+  const threshold = parseInt(document.getElementById("threshold").value) || 65;
+  const resultsDiv = document.getElementById("forecastResults");
+  resultsDiv.innerHTML = "Loading forecast...";
+  const lakes = Object.keys(prevalence);
+  const speciesList = Object.keys(prevalence[lakes[0]]);
+  let hits = [];
+
+  // Example: using Open-Meteo API
+  for (let lake of lakes) {
+    let lat = 43.2, lon = -77.6; // Default Rochester
+    // Could add custom lat/lon per lake here for more accuracy
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,cloudcover,windspeed_10m,precipitation_probability,weathercode&daily=sunrise,sunset&forecast_days=2&timezone=auto`;
+    const data = await fetch(url).then(r=>r.json()).catch(()=>null);
+    if (!data || !data.hourly) continue;
+
+    const sunrise = new Date(data.daily.sunrise[0]);
+    const sunset = new Date(data.daily.sunset[0]);
+
+    for (let h=0; h<24; h++) {
+      let t = data.hourly.temperature_2m[h];
+      let w = data.hourly.windspeed_10m[h];
+      let sky = data.hourly.cloudcover[h];
+      let precip = data.hourly.precipitation_probability[h] > 50 ? "Heavy" :
+                   data.hourly.precipitation_probability[h] > 10 ? "Light" : "None";
+      let baro = "Stable"; // Placeholder without actual pressure trend
+      let time = new Date(data.hourly.time[h]);
+      let tod = (time >= sunrise && time <= new Date(sunrise.getTime()+2*3600000)) ? "Dawn" :
+                (time >= new Date(sunset.getTime()-2*3600000) && time <= sunset) ? "Dusk" :
+                (time.getHours() >= 20 || time.getHours() < 5) ? "Night" : "Midday";
+
+      for (let sp of speciesList) {
+        let score = scoreWeather(sp, t, w, sky, baro, precip, tod) + prevalence[lake][sp];
+        if (score >= threshold) {
+          hits.push({lake, species:sp, time:time.toLocaleString(), score});
+          if (Notification.permission==="granted") {
+            new Notification(`${sp} — ${score}`, { body: `${lake} at ${time.toLocaleTimeString()}` });
+          }
+        }
+      }
+    }
+  }
+
+  hits.sort((a,b)=>b.score-a.score);
+  resultsDiv.innerHTML = "<h3>Hits ≥ "+threshold+"</h3>" + hits.slice(0,10).map(h=>`<div class="alert">${h.species} — ${h.score} @ ${h.lake} (${h.time})</div>`).join("");
+}
+
+// ----------------- Manual Calculator -----------------
+function manualCalc(){
+  const sp = document.getElementById("species").value;
+  const lake = document.getElementById("waterbody").value;
+  const t = parseFloat(document.getElementById("temp").value);
+  const w = parseFloat(document.getElementById("wind").value);
+  const sky = parseFloat(document.getElementById("sky").value);
+  const baro = document.getElementById("baro").value;
+  const precip = document.getElementById("precip").value;
+  const tod = document.getElementById("tod").value;
+  let score = scoreWeather(sp, t, w, sky, baro, precip, tod) + prevalence[lake][sp];
+  document.getElementById("manualResult").innerHTML = `<b>${score}</b> (includes ${prevalence[lake][sp]} prevalence adj)`;
+}
+
+// ----------------- UI & Notifications -----------------
+function showTab(tab){
+  document.getElementById("forecast").classList.add("hidden");
+  document.getElementById("manual").classList.add("hidden");
+  document.getElementById(tab).classList.remove("hidden");
+}
+
+function enableNotifications(){
+  if ("Notification" in window) {
+    Notification.requestPermission().then(p=>{
+      alert(p==="granted"?"Notifications enabled":"Notifications denied");
+    });
+  } else {
+    alert("Notifications not supported");
+  }
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
 </body>
 </html>
