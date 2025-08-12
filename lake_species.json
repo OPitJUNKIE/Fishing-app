@@ -1,0 +1,256 @@
+{
+  "waters": [
+    {
+      "name": "Lake Ontario – Rochester shore",
+      "lat": 43.240,
+      "lon": -77.600,
+      "prevalence": {
+        "Bass": "G",
+        "Walleye": "F",
+        "Trout": "G",
+        "Northern Pike": "L",
+        "Muskellunge": "A",
+        "Chain Pickerel": "A",
+        "Perch": "E"
+      }
+    },
+    {
+      "name": "Irondequoit Bay",
+      "lat": 43.2166,
+      "lon": -77.5283,
+      "prevalence": {
+        "Bass": "E",
+        "Walleye": "F",
+        "Trout": "L",
+        "Northern Pike": "G",
+        "Muskellunge": "A",
+        "Chain Pickerel": "F",
+        "Perch": "E"
+      }
+    },
+    {
+      "name": "Genesee River – lower",
+      "lat": 43.2561,
+      "lon": -77.6079,
+      "prevalence": {
+        "Bass": "G",
+        "Walleye": "F",
+        "Trout": "G",
+        "Northern Pike": "F",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "F"
+      }
+    },
+    {
+      "name": "Braddock Bay",
+      "lat": 43.2990,
+      "lon": -77.7080,
+      "prevalence": {
+        "Bass": "G",
+        "Walleye": "A",
+        "Trout": "A",
+        "Northern Pike": "G",
+        "Muskellunge": "A",
+        "Chain Pickerel": "F",
+        "Perch": "G"
+      }
+    },
+    {
+      "name": "Long Pond",
+      "lat": 43.2770,
+      "lon": -77.6700,
+      "prevalence": {
+        "Bass": "F",
+        "Walleye": "A",
+        "Trout": "A",
+        "Northern Pike": "G",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "G"
+      }
+    },
+    {
+      "name": "Cranberry Pond",
+      "lat": 43.2830,
+      "lon": -77.6930,
+      "prevalence": {
+        "Bass": "F",
+        "Walleye": "A",
+        "Trout": "A",
+        "Northern Pike": "G",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "G"
+      }
+    },
+    {
+      "name": "Buck Pond",
+      "lat": 43.2850,
+      "lon": -77.6820,
+      "prevalence": {
+        "Bass": "F",
+        "Walleye": "A",
+        "Trout": "A",
+        "Northern Pike": "G",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "G"
+      }
+    },
+    {
+      "name": "Round Pond",
+      "lat": 43.2790,
+      "lon": -77.6750,
+      "prevalence": {
+        "Bass": "F",
+        "Walleye": "A",
+        "Trout": "A",
+        "Northern Pike": "G",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "G"
+      }
+    },
+    {
+      "name": "Sodus Bay",
+      "lat": 43.2740,
+      "lon": -76.9880,
+      "prevalence": {
+        "Bass": "G",
+        "Walleye": "F",
+        "Trout": "F",
+        "Northern Pike": "E",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "E"
+      }
+    },
+    {
+      "name": "Blind Sodus Bay",
+      "lat": 43.3420,
+      "lon": -76.7310,
+      "prevalence": {
+        "Bass": "G",
+        "Walleye": "F",
+        "Trout": "L",
+        "Northern Pike": "G",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "G"
+      }
+    },
+    {
+      "name": "Conesus Lake",
+      "lat": 42.7556,
+      "lon": -77.6833,
+      "prevalence": {
+        "Bass": "F",
+        "Walleye": "G",
+        "Trout": "A",
+        "Northern Pike": "E",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "F"
+      }
+    },
+    {
+      "name": "Honeoye Lake",
+      "lat": 42.7831,
+      "lon": -77.5011,
+      "prevalence": {
+        "Bass": "G",
+        "Walleye": "G",
+        "Trout": "A",
+        "Northern Pike": "A",
+        "Muskellunge": "A",
+        "Chain Pickerel": "E",
+        "Perch": "G"
+      }
+    },
+    {
+      "name": "Hemlock Lake",
+      "lat": 42.7167,
+      "lon": -77.6078,
+      "prevalence": {
+        "Bass": "F",
+        "Walleye": "A",
+        "Trout": "E",
+        "Northern Pike": "A",
+        "Muskellunge": "A",
+        "Chain Pickerel": "F",
+        "Perch": "F"
+      }
+    },
+    {
+      "name": "Canadice Lake",
+      "lat": 42.6833,
+      "lon": -77.5806,
+      "prevalence": {
+        "Bass": "F",
+        "Walleye": "A",
+        "Trout": "G",
+        "Northern Pike": "A",
+        "Muskellunge": "A",
+        "Chain Pickerel": "F",
+        "Perch": "F"
+      }
+    },
+    {
+      "name": "Canandaigua Lake",
+      "lat": 42.8700,
+      "lon": -77.2800,
+      "prevalence": {
+        "Bass": "G",
+        "Walleye": "A",
+        "Trout": "E",
+        "Northern Pike": "A",
+        "Muskellunge": "A",
+        "Chain Pickerel": "A",
+        "Perch": "G"
+      }
+    },
+    {
+      "name": "Erie Canal (Rochester)",
+      "lat": 43.0500,
+      "lon": -77.6700,
+      "prevalence": {
+        "Bass": "G",
+        "Walleye": "F",
+        "Trout": "A",
+        "Northern Pike": "F",
+        "Muskellunge": "A",
+        "Chain Pickerel": "F",
+        "Perch": "F"
+      }
+    },
+    {
+      "name": "Oak Orchard River (lower)",
+      "lat": 43.3500,
+      "lon": -78.1900,
+      "prevalence": {
+        "Bass": "F",
+        "Walleye": "A",
+        "Trout": "E",
+        "Northern Pike": "L",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "F"
+      }
+    },
+    {
+      "name": "Sandy Creek (Hamlin)",
+      "lat": 43.3500,
+      "lon": -77.9600,
+      "prevalence": {
+        "Bass": "F",
+        "Walleye": "A",
+        "Trout": "E",
+        "Northern Pike": "L",
+        "Muskellunge": "A",
+        "Chain Pickerel": "L",
+        "Perch": "F"
+      }
+    }
+  ]
+}
