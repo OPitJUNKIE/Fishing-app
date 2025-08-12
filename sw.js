@@ -12,7 +12,6 @@ self.addEventListener('install', (event) => {
       try {
         await cache.addAll(ASSETS);
       } catch (e) {
-        // If some optional files (e.g., icon) are missing, don't fail the whole install
         console.warn('SW addAll partial', e);
       }
     })
@@ -27,12 +26,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin === location.origin) {
-    // Cache-first for app shell + JSON
     event.respondWith(
       caches.match(event.request).then((resp) => resp || fetch(event.request))
     );
   } else {
-    // Network-first for APIs with offline fallback
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
     );
